@@ -5,996 +5,309 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>CODE RED – Systemausfall in der Leitstelle</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&family=Orbitron:wght@700;900&display=swap');
-
-  :root {
-    --red: #e8001e;
-    --red-dim: #a0001a;
-    --red-glow: rgba(232,0,30,0.35);
-    --bg: #080c10;
-    --bg2: #0d1117;
-    --bg3: #111820;
-    --panel: #0f1822;
-    --border: #1e3050;
-    --text: #c8dae8;
-    --text-dim: #5a7890;
-    --green: #00e87a;
-    --green-dim: #00a050;
-    --amber: #ffaa00;
-    --cyan: #00ccff;
-  }
-
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-
-  html, body {
-    width: 100%; height: 100%; overflow: hidden;
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'Rajdhani', sans-serif;
-    font-size: 16px;
-  }
-
-  /* ── SCANLINES & NOISE OVERLAY ── */
-  body::before {
-    content: '';
-    position: fixed; inset: 0; z-index: 9999; pointer-events: none;
-    background: repeating-linear-gradient(
-      0deg,
-      transparent,
-      transparent 2px,
-      rgba(0,0,0,0.08) 2px,
-      rgba(0,0,0,0.08) 4px
-    );
-  }
-
-  /* ── GLOBAL CONTAINER ── */
-  #app {
-    width: 100vw; height: 100vh;
-    display: flex; flex-direction: column;
-    overflow: hidden;
-  }
-
-  /* ── TOP BAR ── */
-  #topbar {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 8px 18px;
-    background: var(--bg2);
-    border-bottom: 1px solid var(--border);
-    flex-shrink: 0;
-    gap: 10px;
-  }
-  #logo {
-    font-family: 'Orbitron', sans-serif;
-    font-size: 13px; font-weight: 900;
-    color: var(--red);
-    letter-spacing: 2px;
-    text-shadow: 0 0 12px var(--red-glow);
-    white-space: nowrap;
-  }
-  #logo span { color: var(--text-dim); font-size: 10px; display: block; letter-spacing: 1px; font-family: 'Share Tech Mono', monospace; }
-
-  #timer-wrap {
-    display: flex; align-items: center; gap: 8px;
-    background: var(--panel);
-    border: 1px solid var(--border);
-    padding: 6px 14px; border-radius: 4px;
-  }
-  #timer-label { font-family: 'Share Tech Mono', monospace; font-size: 10px; color: var(--text-dim); letter-spacing: 2px; }
-  #timer {
-    font-family: 'Orbitron', monospace;
-    font-size: 26px; font-weight: 700;
-    color: var(--amber);
-    text-shadow: 0 0 16px rgba(255,170,0,0.5);
-    min-width: 95px; text-align: center;
-    transition: color 0.3s;
-  }
-  #timer.urgent { color: var(--red); text-shadow: 0 0 20px var(--red-glow); animation: blink 0.7s infinite alternate; }
-  @keyframes blink { from { opacity: 1; } to { opacity: 0.5; } }
-
-  #level-indicator {
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 11px; color: var(--text-dim);
-    letter-spacing: 1px; white-space: nowrap;
-  }
-  #level-indicator span { color: var(--cyan); }
-
-  /* ── MAIN CONTENT ── */
-  #content {
-    flex: 1; overflow-y: auto;
-    padding: 20px 18px;
-    display: flex; flex-direction: column; align-items: center;
-  }
-  #content::-webkit-scrollbar { width: 5px; }
-  #content::-webkit-scrollbar-track { background: var(--bg2); }
-  #content::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-
-  /* ── SCREENS ── */
-  .screen { display: none; width: 100%; max-width: 680px; animation: fadeIn 0.4s ease; }
-  .screen.active { display: flex; flex-direction: column; gap: 18px; }
-  @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-
-  /* ── PANEL CARDS ── */
-  .panel {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 20px;
-    position: relative;
-    overflow: hidden;
-  }
-  .panel::before {
-    content: '';
-    position: absolute; top: 0; left: 0; right: 0; height: 2px;
-    background: linear-gradient(90deg, transparent, var(--red), transparent);
-  }
-  .panel.green::before { background: linear-gradient(90deg, transparent, var(--green), transparent); }
-  .panel.cyan::before { background: linear-gradient(90deg, transparent, var(--cyan), transparent); }
-  .panel.amber::before { background: linear-gradient(90deg, transparent, var(--amber), transparent); }
-
-  .panel-tag {
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 10px; color: var(--red); letter-spacing: 2px;
-    margin-bottom: 10px; display: block;
-  }
-  .panel-tag.green { color: var(--green); }
-  .panel-tag.cyan { color: var(--cyan); }
-  .panel-tag.amber { color: var(--amber); }
-
-  h1 {
-    font-family: 'Orbitron', sans-serif;
-    font-size: 22px; font-weight: 900;
-    color: var(--red);
-    letter-spacing: 2px;
-    text-shadow: 0 0 20px var(--red-glow);
-    line-height: 1.2;
-    margin-bottom: 6px;
-  }
-  h2 {
-    font-family: 'Orbitron', sans-serif;
-    font-size: 15px; font-weight: 700;
-    color: var(--cyan); letter-spacing: 1px; margin-bottom: 8px;
-  }
-  h3 {
-    font-family: 'Rajdhani', sans-serif;
-    font-size: 14px; font-weight: 700;
-    color: var(--amber); letter-spacing: 2px; margin-bottom: 6px; text-transform: uppercase;
-  }
-
-  p { font-size: 15px; line-height: 1.65; color: var(--text); margin-bottom: 8px; }
-  p:last-child { margin-bottom: 0; }
-
-  .mono { font-family: 'Share Tech Mono', monospace; font-size: 13px; color: var(--cyan); }
-
-  /* ── STORY SLIDES ── */
-  .story-slide { display: none; }
-  .story-slide.active { display: block; animation: fadeIn 0.3s ease; }
-  .slide-nav { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; }
-  .slide-dots { display: flex; gap: 6px; }
-  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); transition: background 0.3s; }
-  .dot.active { background: var(--red); box-shadow: 0 0 8px var(--red-glow); }
-
-  /* ── BUTTONS ── */
-  .btn {
-    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-    padding: 12px 24px;
-    border: none; border-radius: 4px; cursor: pointer;
-    font-family: 'Rajdhani', sans-serif; font-size: 16px; font-weight: 700;
-    letter-spacing: 2px; text-transform: uppercase;
-    transition: all 0.2s;
-    position: relative; overflow: hidden;
-  }
-  .btn::after {
-    content: ''; position: absolute; inset: 0;
-    background: rgba(255,255,255,0.08);
-    opacity: 0; transition: opacity 0.2s;
-  }
-  .btn:hover::after { opacity: 1; }
-  .btn:active { transform: scale(0.97); }
-
-  .btn-red { background: var(--red); color: #fff; box-shadow: 0 0 20px var(--red-glow); }
-  .btn-red:hover { box-shadow: 0 0 30px var(--red-glow); }
-  .btn-green { background: var(--green-dim); color: #fff; box-shadow: 0 0 16px rgba(0,232,122,0.3); }
-  .btn-outline {
-    background: transparent; color: var(--text);
-    border: 1px solid var(--border);
-  }
-  .btn-outline:hover { border-color: var(--text-dim); }
-  .btn-sm { padding: 8px 16px; font-size: 13px; }
-  .btn-full { width: 100%; }
-
-  /* ── INPUT FIELDS ── */
-  .input-group { display: flex; flex-direction: column; gap: 6px; }
-  .input-label { font-family: 'Share Tech Mono', monospace; font-size: 11px; color: var(--text-dim); letter-spacing: 2px; }
-  .code-input {
-    background: var(--bg2); border: 1px solid var(--border);
-    color: var(--cyan); font-family: 'Share Tech Mono', monospace;
-    font-size: 20px; letter-spacing: 4px; text-align: center;
-    padding: 12px 18px; border-radius: 4px; width: 100%;
-    text-transform: uppercase;
-    transition: border-color 0.2s, box-shadow 0.2s;
-    outline: none;
-  }
-  .code-input:focus { border-color: var(--cyan); box-shadow: 0 0 12px rgba(0,204,255,0.2); }
-  .code-input.error { border-color: var(--red); animation: shake 0.3s; }
-  .code-input.success { border-color: var(--green); box-shadow: 0 0 12px rgba(0,232,122,0.3); }
-  @keyframes shake {
-    0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)}
-  }
-
-  .feedback-msg {
-    font-family: 'Share Tech Mono', monospace; font-size: 12px;
-    padding: 8px 12px; border-radius: 3px; display: none;
-    letter-spacing: 1px;
-  }
-  .feedback-msg.error { display: block; background: rgba(232,0,30,0.15); color: var(--red); border: 1px solid var(--red-dim); }
-  .feedback-msg.success { display: block; background: rgba(0,232,122,0.1); color: var(--green); border: 1px solid var(--green-dim); }
-
-  /* ── CAESAR WHEEL ── */
-  .caesar-display {
-    background: var(--bg2); border: 1px solid var(--border);
-    border-radius: 6px; padding: 16px; text-align: center;
-    font-family: 'Share Tech Mono', monospace;
-    overflow-x: auto;
-  }
-  .caesar-row { display: flex; gap: 0; margin: 4px auto; justify-content: center; flex-wrap: wrap; }
-  .caesar-cell {
-    width: 28px; height: 28px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 12px; border: 1px solid var(--border);
-  }
-  .caesar-cell.header { color: var(--text-dim); background: var(--bg3); }
-  .caesar-cell.val { color: var(--cyan); }
-  .cipher-text {
-    font-family: 'Orbitron', monospace; font-size: 20px; letter-spacing: 6px;
-    color: var(--red); text-shadow: 0 0 10px var(--red-glow);
-    margin: 12px 0 6px; text-align: center;
-  }
-  .shift-info { font-family: 'Share Tech Mono', monospace; font-size: 12px; color: var(--amber); }
-
-  /* ── CLUE BOX ── */
-  .clue-box {
-    background: rgba(255,170,0,0.08);
-    border: 1px solid var(--amber);
-    border-radius: 4px; padding: 14px; border-left: 3px solid var(--amber);
-  }
-  .clue-box p { color: var(--amber); font-size: 14px; }
-
-  /* ── PROGRESS BAR ── */
-  .progress-track {
-    background: var(--bg2); border: 1px solid var(--border);
-    border-radius: 2px; height: 6px; overflow: hidden;
-  }
-  .progress-fill {
-    height: 100%; background: linear-gradient(90deg, var(--red-dim), var(--red));
-    box-shadow: 0 0 10px var(--red-glow);
-    transition: width 1s linear;
-  }
-
-  /* ── LEVEL BADGE ── */
-  .level-badge {
-    display: inline-flex; align-items: center; gap: 8px;
-    background: rgba(232,0,30,0.1); border: 1px solid var(--red-dim);
-    padding: 5px 12px; border-radius: 2px; margin-bottom: 10px;
-    font-family: 'Share Tech Mono', monospace; font-size: 11px; color: var(--red);
-    letter-spacing: 2px;
-  }
-  .level-badge::before { content: '●'; animation: pulse 1.2s infinite; }
-  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
-
-  /* ── CHECKLIST ── */
-  .checklist { list-style: none; display: flex; flex-direction: column; gap: 6px; }
-  .checklist li {
-    display: flex; align-items: flex-start; gap: 10px;
-    font-size: 14px; line-height: 1.5;
-    padding: 8px 10px;
-    background: var(--bg2); border-radius: 3px;
-    border-left: 2px solid var(--border);
-  }
-  .checklist li::before { content: '▸'; color: var(--red); flex-shrink: 0; }
-
-  /* ── STATIONS LIST ── */
-  .station-item {
-    display: flex; gap: 12px; align-items: flex-start;
-    padding: 10px 14px;
-    background: var(--bg2); border: 1px solid var(--border); border-radius: 4px;
-  }
-  .station-num {
-    font-family: 'Orbitron', monospace; font-size: 20px; font-weight: 900;
-    color: var(--red); min-width: 28px;
-  }
-  .station-info { flex: 1; }
-  .station-name { font-weight: 700; font-size: 15px; color: var(--text); }
-  .station-desc { font-size: 13px; color: var(--text-dim); margin-top: 2px; }
-
-  /* ── FINALE / END ── */
-  .end-icon {
-    font-size: 60px; text-align: center; margin: 10px 0;
-    animation: bounceIn 0.5s ease;
-  }
-  @keyframes bounceIn {
-    0%{transform:scale(0.5);opacity:0} 70%{transform:scale(1.1)} 100%{transform:scale(1);opacity:1}
-  }
-
-  /* ── ALERT/WARNING BOX ── */
-  .alert {
-    background: rgba(232,0,30,0.08); border: 1px solid var(--red-dim);
-    border-radius: 4px; padding: 12px 14px;
-    font-family: 'Share Tech Mono', monospace; font-size: 12px;
-    color: var(--red); letter-spacing: 0.5px;
-    display: flex; gap: 8px; align-items: flex-start;
-  }
-  .alert::before { content: '⚠'; flex-shrink: 0; }
-
-  /* ── RULES LIST ── */
-  .rules { display: flex; flex-direction: column; gap: 8px; }
-  .rule {
-    display: flex; gap: 10px; align-items: flex-start;
-    font-size: 14px; line-height: 1.5;
-  }
-  .rule-num {
-    font-family: 'Orbitron', monospace; font-size: 13px; font-weight: 700;
-    color: var(--red); background: rgba(232,0,30,0.15);
-    width: 24px; height: 24px; border-radius: 50%; flex-shrink: 0;
-    display: flex; align-items: center; justify-content: center;
-  }
-
-  /* ── GRID ── */
-  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  @media (max-width: 400px) { .grid2 { grid-template-columns: 1fr; } }
-
-  /* ── DRK QUIZ ── */
-  .quiz-option {
-    display: flex; align-items: center; gap: 10px;
-    background: var(--bg2); border: 1px solid var(--border);
-    border-radius: 4px; padding: 12px 14px; cursor: pointer;
-    transition: all 0.2s; font-size: 14px;
-  }
-  .quiz-option:hover { border-color: var(--cyan); }
-  .quiz-option.correct { border-color: var(--green); background: rgba(0,232,122,0.1); color: var(--green); }
-  .quiz-option.wrong { border-color: var(--red); background: rgba(232,0,30,0.1); color: var(--red); }
-  .quiz-letter {
-    font-family: 'Orbitron', monospace; font-size: 12px; font-weight: 700;
-    color: var(--text-dim); width: 22px; height: 22px;
-    border: 1px solid var(--border); border-radius: 2px;
-    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-  }
-
-  /* ── SCROLL INDICATOR ── */
-  .scroll-hint {
-    text-align: center; font-family: 'Share Tech Mono', monospace;
-    font-size: 10px; color: var(--text-dim); letter-spacing: 2px;
-    padding: 6px; animation: floatY 2s infinite ease-in-out;
-  }
-  @keyframes floatY { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-4px)} }
-
-  /* ── GLITCH ANIMATION ── */
-  .glitch {
-    position: relative; display: inline-block;
-  }
-  .glitch::before, .glitch::after {
-    content: attr(data-text);
-    position: absolute; top: 0; left: 0; width: 100%;
-    overflow: hidden;
-  }
-  .glitch::before {
-    color: var(--cyan); animation: glitch1 3s infinite; clip-path: polygon(0 30%,100% 30%,100% 50%,0 50%);
-  }
-  .glitch::after {
-    color: var(--red); animation: glitch2 3s infinite; clip-path: polygon(0 60%,100% 60%,100% 80%,0 80%);
-  }
-  @keyframes glitch1 { 0%,90%,100%{transform:translateX(0)} 92%{transform:translateX(-3px)} 94%{transform:translateX(3px)} 96%{transform:translateX(-2px)} }
-  @keyframes glitch2 { 0%,88%,100%{transform:translateX(0)} 90%{transform:translateX(3px)} 93%{transform:translateX(-2px)} 95%{transform:translateX(2px)} }
-
-  /* ── HIDDEN CLUE UNLOCK ── */
-  .locked-content { display: none; }
-  .locked-content.revealed { display: block; animation: fadeIn 0.5s ease; }
-
-  /* ── SEPARATOR ── */
-  .sep { border: none; border-top: 1px solid var(--border); margin: 4px 0; }
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#0a0e14;--bg2:#111820;--red:#dc2626;--red-glow:#ff3333;--green:#22c55e;--green-dark:#16a34a;--amber:#f59e0b;--text:#e2e8f0;--text-dim:#64748b;--text-bright:#f8fafc;--mono:'Courier New',Consolas,monospace;--sans:'Segoe UI','Helvetica Neue',Arial,sans-serif}
+html,body{height:100%;overflow:hidden;font-family:var(--sans);background:var(--bg);color:var(--text)}
+body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.08) 2px,rgba(0,0,0,.08) 4px);pointer-events:none;z-index:9999}
+.screen{display:none;flex-direction:column;align-items:center;justify-content:center;height:100vh;padding:24px;text-align:center;overflow-y:auto;animation:fadeIn .5s ease}
+.screen.active{display:flex}
+@keyframes fadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+#timer-bar{display:none;position:fixed;top:0;left:0;right:0;height:52px;background:rgba(10,14,20,.95);border-bottom:2px solid var(--red);z-index:1000;align-items:center;justify-content:center;gap:12px;font-family:var(--mono);font-size:1.4rem;color:var(--red-glow)}
+#timer-bar.visible{display:flex}
+#timer-bar .ti{animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+#timer-bar.warning{border-bottom-color:var(--amber);color:var(--amber)}
+#timer-bar.critical{animation:tf .5s infinite;border-bottom-color:#ff0000}
+@keyframes tf{0%,100%{background:rgba(10,14,20,.95)}50%{background:rgba(220,38,38,.3)}}
+#progress-wrap{display:none;position:fixed;bottom:0;left:0;right:0;height:6px;background:var(--bg2);z-index:1000}
+#progress-wrap.visible{display:block}
+#progress-bar{height:100%;background:linear-gradient(90deg,var(--red),var(--green));width:0%;transition:width .6s}
+h1{font-size:clamp(1.8rem,5vw,2.8rem);font-weight:800;letter-spacing:-.02em;margin-bottom:12px}
+h2{font-size:clamp(1.2rem,3.5vw,1.8rem);font-weight:700;margin-bottom:8px}
+h3{font-size:1.1rem;font-weight:600;color:var(--red);text-transform:uppercase;letter-spacing:.1em;margin-bottom:16px}
+p,.desc{font-size:1rem;line-height:1.6;color:var(--text-dim);max-width:560px;margin:0 auto 16px}
+.hl{color:var(--red-glow);font-weight:700}
+.ct{font-family:var(--mono);color:var(--green);font-size:1.3rem;background:rgba(34,197,94,.1);padding:8px 16px;border-radius:6px;border:1px solid rgba(34,197,94,.2);display:inline-block;margin:8px 0;letter-spacing:.15em}
+.gl{position:relative;font-family:var(--mono);color:var(--red-glow);text-shadow:0 0 20px rgba(220,38,38,.5)}
+.gl::before,.gl::after{content:attr(data-text);position:absolute;top:0;left:0;right:0}
+.gl::before{animation:g1 2s infinite;color:var(--red);clip-path:inset(20% 0 60% 0)}
+.gl::after{animation:g2 2s infinite;color:#ff6666;clip-path:inset(60% 0 10% 0)}
+@keyframes g1{0%,100%{transform:translateX(0)}20%{transform:translateX(-3px)}40%{transform:translateX(3px)}60%{transform:translateX(-1px)}}
+@keyframes g2{0%,100%{transform:translateX(0)}30%{transform:translateX(2px)}50%{transform:translateX(-4px)}70%{transform:translateX(1px)}}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:14px 32px;border:none;border-radius:8px;font-size:1.05rem;font-weight:700;cursor:pointer;transition:all .2s;text-transform:uppercase;letter-spacing:.06em}
+.btn-r{background:var(--red);color:#fff;box-shadow:0 0 20px rgba(220,38,38,.3)}
+.btn-r:hover{background:#ef4444;box-shadow:0 0 30px rgba(220,38,38,.5);transform:translateY(-1px)}
+.btn-g{background:var(--green-dark);color:#fff;box-shadow:0 0 20px rgba(22,163,74,.3)}
+.btn-g:hover{background:var(--green)}
+.btn-o{background:transparent;color:var(--text);border:2px solid var(--text-dim)}
+.btn-o:hover{border-color:var(--text);background:rgba(255,255,255,.05)}
+.btn-s{padding:20px 48px;font-size:1.3rem;border-radius:12px;animation:sp 2s infinite}
+@keyframes sp{0%,100%{box-shadow:0 0 20px rgba(220,38,38,.3)}50%{box-shadow:0 0 40px rgba(220,38,38,.6)}}
+.ig{display:flex;gap:8px;margin:16px auto;max-width:400px}
+.if{flex:1;padding:14px 16px;background:var(--bg2);border:2px solid var(--text-dim);border-radius:8px;color:var(--text-bright);font-family:var(--mono);font-size:1.2rem;text-align:center;text-transform:uppercase;letter-spacing:.1em}
+.if:focus{outline:none;border-color:var(--red);box-shadow:0 0 12px rgba(220,38,38,.3)}
+.if.ok{border-color:var(--green);background:rgba(34,197,94,.1)}
+.if.bad{border-color:#ef4444;animation:shake .4s}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+.fb{font-size:.9rem;min-height:24px;margin-top:8px}
+.fb.err{color:#ef4444}
+.fb.suc{color:var(--green)}
+.pn{background:var(--bg2);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:24px;max-width:560px;width:100%;margin:12px auto;text-align:left}
+.pn ul{list-style:none;padding:0}
+.pn li{padding:6px 0;padding-left:20px;position:relative;color:var(--text-dim)}
+.pn li::before{content:'▸';position:absolute;left:0;color:var(--red)}
+.qo{display:block;width:100%;padding:14px 16px;background:var(--bg2);border:2px solid rgba(255,255,255,.1);border-radius:8px;color:var(--text);font-size:1rem;cursor:pointer;text-align:left;transition:all .15s;margin-bottom:8px}
+.qo:hover{border-color:var(--text-dim);background:rgba(255,255,255,.05)}
+.qo.ca{border-color:var(--green)!important;background:rgba(34,197,94,.15)!important;color:var(--text-bright)!important}
+.qo.wa{border-color:#ef4444!important;background:rgba(239,68,68,.15)!important}
+.qo:disabled{cursor:default;opacity:.7}
+.qs{font-family:var(--mono);font-size:1.3rem;color:var(--amber)}
+.qc{font-family:var(--mono);font-size:.85rem;color:var(--text-dim);margin-bottom:8px}
+.mga{width:100%;max-width:500px;height:300px;background:var(--bg2);border:2px solid var(--red);border-radius:12px;position:relative;overflow:hidden;margin:12px auto;touch-action:manipulation}
+.vt{position:absolute;width:60px;height:60px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:2rem;user-select:none;-webkit-user-select:none;background:rgba(220,38,38,.2);border:2px solid var(--red);animation:vp .3s ease}
+@keyframes vp{from{transform:scale(0)}to{transform:scale(1)}}
+.vt.ct2{background:rgba(34,197,94,.3)!important;border-color:var(--green)!important;transform:scale(1.3);opacity:0;transition:all .3s}
+.mgs{display:flex;gap:24px;justify-content:center;margin:8px 0;font-family:var(--mono)}
+.mgs span{font-size:1.1rem}
+.ei{font-size:4rem;margin-bottom:16px}
+.sc{overflow-y:auto;max-height:calc(100vh - 80px);padding:20px;width:100%;padding-top:60px}
+.dl{width:80px;height:3px;background:var(--red);margin:12px auto;border-radius:2px}
+.cr{color:var(--red-glow);font-size:2.5rem;margin-bottom:8px}
+.mt{display:grid;grid-template-columns:repeat(auto-fill,minmax(75px,1fr));gap:4px;max-width:500px;margin:12px auto;font-family:var(--mono);font-size:.85rem}
+.mc{background:var(--bg2);border:1px solid rgba(255,255,255,.08);padding:6px;border-radius:4px;text-align:center}
+.ml{color:var(--amber);font-weight:700;font-size:1rem}
+.mcd{color:var(--text-dim);font-size:.8rem}
 </style>
 </head>
 <body>
-<div id="app">
+<div id="timer-bar"><span class="ti">⏱</span><span id="td">60:00</span></div>
+<div id="progress-wrap"><div id="progress-bar"></div></div>
 
-  <!-- TOP BAR -->
-  <div id="topbar">
-    <div id="logo">
-      CODE RED
-      <span>DRK LEITSTELLEN-PROTOKOLL</span>
-    </div>
-    <div id="timer-wrap">
-      <div id="timer-label">ZEIT</div>
-      <div id="timer">60:00</div>
-    </div>
-    <div id="level-indicator">PHASE: <span id="phase-text">INTRO</span></div>
+<!-- TITLE -->
+<div class="screen active" id="s-title">
+  <div class="cr">✚</div>
+  <h1 class="gl" data-text="CODE RED">CODE RED</h1>
+  <h2 style="color:var(--text-dim);font-weight:400">Systemausfall in der Leitstelle</h2>
+  <div class="dl"></div>
+  <p>Ein Escape-Room-Abenteuer des<br><span class="hl">Jugendrotkreuz</span></p><br>
+  <button class="btn btn-r" onclick="go('s-st1')">Einsteigen ▸</button>
+</div>
+
+<!-- STORY 1 -->
+<div class="screen" id="s-st1">
+  <h3>⚠ Eingehende Meldung</h3>
+  <div class="pn">
+    <p style="color:var(--red-glow);font-family:var(--mono);font-size:.9rem;margin-bottom:12px">SYSTEM: KRITISCHER FEHLER ERKANNT</p>
+    <p>Ein unbekannter <span class="hl">Computervirus</span> hat das gesamte System der Rettungsleitstelle lahmgelegt. Keine Einsätze können mehr koordiniert werden!</p>
+    <p>Im Dorf wurde ein <span class="hl">Großbrand</span> gemeldet – doch ohne das Leitstellensystem können die Rettungskräfte nicht losgeschickt werden.</p>
+    <p>Es gibt nur eine Chance: Das analoge <span class="hl">Notfall-Protokoll</span> eines erfahrenen, alten Rettungssanitäters. Er hat seine Geheimnisse in Rätseln versteckt...</p>
   </div>
+  <button class="btn btn-r" onclick="go('s-st2')">Weiter ▸</button>
+</div>
 
-  <!-- MAIN CONTENT -->
-  <div id="content">
+<!-- STORY 2 -->
+<div class="screen" id="s-st2">
+  <h3>🎯 Eure Mission</h3>
+  <div class="pn">
+    <p><strong>Ihr habt 60 Minuten</strong>, um das System neu zu starten!</p>
+    <p>Löst die Rätsel des alten Sanitäters – drinnen und draußen – und gebt die richtigen Codes ins Tablet ein.</p>
+    <p>Nur <span class="hl">Teamwork</span> bringt euch ans Ziel. Jeder wird gebraucht!</p>
+  </div>
+  <button class="btn btn-r" onclick="go('s-rules')">Weiter ▸</button>
+</div>
 
-    <!-- ═══════════════════════════════════════════════════════════
-         SCREEN 0: INTRO / STORY
-    ═══════════════════════════════════════════════════════════ -->
-    <div class="screen active" id="screen-intro">
+<!-- RULES -->
+<div class="screen" id="s-rules">
+  <h3>📋 Regeln</h3>
+  <div class="pn">
+    <ul>
+      <li>Das <strong>Tablet bleibt immer drinnen</strong> auf dem Tisch!</li>
+      <li>Für die Außen-Rätsel nehmt ihr <strong>Stift und Papier</strong> mit.</li>
+      <li>Zettel draußen <strong>hängen lassen</strong> – nicht mitnehmen!</li>
+      <li><strong>Teamwork</strong> ist Pflicht – besprecht euch, bevor ihr eine Lösung eingebt!</li>
+      <li>Ihr habt <strong>3 Versuche</strong> pro Rätsel. Danach gibt es einen Hinweis.</li>
+      <li>Der Timer läuft ab dem Start – <strong>60 Minuten</strong>!</li>
+    </ul>
+  </div><br>
+  <button class="btn btn-r btn-s" onclick="startGame()">🚨 MISSION STARTEN</button>
+</div>
 
-      <div class="panel">
-        <span class="panel-tag">// NOTFALL-BROADCAST – DRK LEITSTELLE //</span>
-        <h1 class="glitch" data-text="CODE RED">CODE RED</h1>
-        <p style="color:var(--red); font-weight:700; font-size:14px;">SYSTEMAUSFALL IN DER LEITSTELLE</p>
-      </div>
+<!-- LEVEL 1: CAESAR -->
+<div class="screen" id="s-l1"><div class="sc">
+  <h3>Level 1 – Verschlüsselte Nachricht</h3>
+  <h2>Cäsar-Chiffre</h2>
+  <p>Der alte Sanitäter hat eine verschlüsselte Nachricht hinterlassen. Benutzt die <span class="hl">Cäsar-Scheibe</span> (liegt auf dem Tisch)!</p>
+  <div class="ct">Verschlüsselt: QRWUXI</div>
+  <p style="font-size:.85rem">Verschiebung <strong>3</strong> – dreht jeden Buchstaben 3 Stellen zurück!</p>
+  <div class="ig"><input class="if" id="i-l1" maxlength="10" placeholder="LÖSUNG..." onkeydown="if(event.key==='Enter')chk('l1')"><button class="btn btn-g" onclick="chk('l1')">✓</button></div>
+  <div class="fb" id="f-l1"></div>
+</div></div>
 
-      <!-- Slide 1 -->
-      <div class="panel" id="slide-wrap">
-        <div class="story-slide active" id="slide-0">
-          <h2>⚡ ALARMSTUFE ROT</h2>
-          <p>Ein unbekannter Computervirus hat heute um 03:47 Uhr alle digitalen Systeme der DRK-Rettungsleitstelle lahmgelegt. Fahrzeugdisposition, Alarmierungssoftware, GPS-Tracking – <strong style="color:var(--red)">alles ausgefallen.</strong></p>
-          <p>Gleichzeitig meldet die Feuerwehr einen sich schnell ausbreitenden Großbrand am Stadtrand. Ohne funktionsfähige Leitstelle droht eine Katastrophe.</p>
-        </div>
-        <div class="story-slide" id="slide-1">
-          <h2>📋 DIE MISSION</h2>
-          <p>Der pensionierte Rettungssanitäter Hans Kemper hat in seiner Dienstzeit ein <strong style="color:var(--amber)">analoges Notfall-Protokoll</strong> entwickelt – für genau diesen Fall.</p>
-          <p>Er hat es in verschlüsselter Form hinterlassen. <strong>Ihr müsst es entschlüsseln</strong>, das System manuell neu starten und die Leitstelle wieder in Betrieb nehmen.</p>
-          <p style="color:var(--red); font-weight:700;">Ihr habt 60 Minuten. Dann eskaliert der Brand unkontrollierbar.</p>
-        </div>
-        <div class="story-slide" id="slide-2">
-          <h2>📋 SPIELREGELN</h2>
-          <div class="rules">
-            <div class="rule"><div class="rule-num">1</div><div>Das <strong>Tablet bleibt im Raum</strong> – es ist eure Leitstellen-Zentrale.</div></div>
-            <div class="rule"><div class="rule-num">2</div><div>Draußen hängende <strong>Hinweiszettel bleiben hängen</strong> – andere Gruppen spielen ebenfalls.</div></div>
-            <div class="rule"><div class="rule-num">3</div><div>Nehmt für die Außenmission <strong>Stift &amp; Papier</strong> mit.</div></div>
-            <div class="rule"><div class="rule-num">4</div><div>Bei echter Not jederzeit zum Spielleiter – ihr habt <strong>2 Joker</strong> (Hinweis erfragen).</div></div>
-            <div class="rule"><div class="rule-num">5</div><div>Arbeitet als Team. Kommuniziert. Der DRK-Geist zählt!</div></div>
-          </div>
-        </div>
-        <div class="slide-nav">
-          <button class="btn btn-outline btn-sm" id="prev-slide" style="visibility:hidden">◀ ZURÜCK</button>
-          <div class="slide-dots">
-            <div class="dot active" id="dot-0"></div>
-            <div class="dot" id="dot-1"></div>
-            <div class="dot" id="dot-2"></div>
-          </div>
-          <button class="btn btn-red btn-sm" id="next-slide">WEITER ▶</button>
-        </div>
-      </div>
+<!-- LEVEL 2: CROSSWORD -->
+<div class="screen" id="s-l2"><div class="sc">
+  <h3>Level 2 – Kreuzworträtsel</h3>
+  <h2>Erste-Hilfe-Wissen</h2>
+  <p>Löst das <span class="hl">Kreuzworträtsel</span> auf dem Arbeitsblatt! Die rot markierten Buchstaben ergeben das Lösungswort.</p>
+  <div class="pn" style="font-size:.9rem"><ul>
+    <li>1. Kopfschutz beim Radfahren (4 Buchstaben)</li>
+    <li>2. Damit verbindet man eine Wunde (7 Buchstaben)</li>
+    <li>3. Den fühlt man am Handgelenk (4 Buchstaben)</li>
+    <li>4. Verbandmaterial in Dreiecksform (11 Buchstaben)</li>
+  </ul></div>
+  <div class="ig"><input class="if" id="i-l2" maxlength="10" placeholder="LÖSUNGSWORT..." onkeydown="if(event.key==='Enter')chk('l2')"><button class="btn btn-g" onclick="chk('l2')">✓</button></div>
+  <div class="fb" id="f-l2"></div>
+</div></div>
 
-      <div id="start-btn-wrap" style="display:none">
-        <button class="btn btn-red btn-full" onclick="startGame()" style="padding:18px; font-size:18px;">
-          🚨 MISSION STARTEN
-        </button>
-      </div>
+<!-- LEVEL 3: ITEMS -->
+<div class="screen" id="s-l3"><div class="sc">
+  <h3>Level 3 – Inventur im Rettungswagen</h3>
+  <h2>Gegenstände zählen</h2>
+  <p>Im Raum sind <span class="hl">versteckte Gegenstände</span>. Findet und zählt sie!</p>
+  <div class="pn" style="font-size:.95rem"><ul>
+    <li><strong>1. Ziffer:</strong> Anzahl der LEGOSTEINE</li>
+    <li><strong>2. Ziffer:</strong> Anzahl der STIFTE</li>
+    <li><strong>3. Ziffer:</strong> Anzahl der KLEBEZETTEL</li>
+  </ul></div>
+  <p style="font-size:.85rem">Schaut überall – unter Stühlen, hinter Büchern, in Ecken!</p>
+  <div class="ig"><input class="if" id="i-l3" maxlength="3" placeholder="_ _ _" inputmode="numeric" onkeydown="if(event.key==='Enter')chk('l3')"><button class="btn btn-g" onclick="chk('l3')">✓</button></div>
+  <div class="fb" id="f-l3"></div>
+</div></div>
 
-    </div><!-- end screen-intro -->
+<!-- OUTDOOR INTRO -->
+<div class="screen" id="s-out-i">
+  <h3>🌍 Außenmission freigeschaltet!</h3>
+  <h2>Ab nach draußen!</h2>
+  <div class="pn">
+    <p style="color:var(--green);font-family:var(--mono);font-size:.9rem;margin-bottom:12px">SYSTEM: OUTDOOR-MODUL AKTIVIERT</p>
+    <ul>
+      <li>Nehmt <strong>Stift und Papier</strong> mit!</li>
+      <li>Es gibt <strong>5 Stationen</strong> draußen</li>
+      <li>Jeder Zettel verrät euch die <strong>nächste Station</strong></li>
+      <li>Notiert euch alle <strong>Zahlen</strong> – ihr braucht sie am Ende!</li>
+      <li>Zettel <strong>hängen lassen</strong>!</li>
+      <li><strong>Erste Station: TREPPENHAUS</strong><br>(oberer Stock, hinten an der Tür)</li>
+    </ul>
+  </div><br>
+  <button class="btn btn-r" onclick="go('s-out-r')">Verstanden – Los! ▸</button>
+</div>
 
+<!-- OUTDOOR RETURN -->
+<div class="screen" id="s-out-r"><div class="sc">
+  <h3>🔑 Außenmission – Code eingeben</h3>
+  <h2>Zurück von draußen?</h2>
+  <p>Gebt das Ergebnis eurer Berechnung von <span class="hl">Station 5</span> ein!</p>
+  <div class="ig"><input class="if" id="i-out" maxlength="5" placeholder="CODE..." inputmode="numeric" onkeydown="if(event.key==='Enter')chk('out')"><button class="btn btn-g" onclick="chk('out')">✓</button></div>
+  <div class="fb" id="f-out"></div>
+</div></div>
 
-    <!-- ═══════════════════════════════════════════════════════════
-         SCREEN 1: LEVEL 1 – CÄSAR-RÄTSEL
-    ═══════════════════════════════════════════════════════════ -->
-    <div class="screen" id="screen-l1">
+<!-- LEVEL 5: NUMBER CODE -->
+<div class="screen" id="s-l5"><div class="sc">
+  <h3>Level 5 – Funkspruch entschlüsseln</h3>
+  <h2>Zahlencode</h2>
+  <p>Jeder Buchstabe hat eine Zahl: <span class="hl">A=1, B=2, C=3 ... Z=26</span></p>
+  <div class="ct">2 – 18 – 1 – 14 – 4</div>
+  <p style="font-size:.85rem">Benutzt das Entschlüsselungsblatt oder zählt im Alphabet!</p>
+  <div class="ig"><input class="if" id="i-l5" maxlength="10" placeholder="WORT..." onkeydown="if(event.key==='Enter')chk('l5')"><button class="btn btn-g" onclick="chk('l5')">✓</button></div>
+  <div class="fb" id="f-l5"></div>
+</div></div>
 
-      <div class="level-badge">LEVEL 1 – VERSCHLÜSSELTES PROTOKOLL</div>
+<!-- LEVEL 7: MORSE -->
+<div class="screen" id="s-l7"><div class="sc">
+  <h3>Level 7 – Morsezeichen</h3>
+  <h2>Notsignal entschlüsseln</h2>
+  <p>Der alte Sanitäter hat eine letzte Nachricht per <span class="hl">Morsecode</span> hinterlassen!</p>
+  <div class="ct" style="font-size:1.5rem;letter-spacing:.3em">..−. / ..− / −. / −.−</div>
+  <p style="font-size:.85rem">Punkt = kurz &nbsp; Strich = lang &nbsp; / = nächster Buchstabe</p>
+  <div class="mt">
+    <div class="mc"><span class="ml">A</span><br><span class="mcd">.-</span></div>
+    <div class="mc"><span class="ml">B</span><br><span class="mcd">-...</span></div>
+    <div class="mc"><span class="ml">C</span><br><span class="mcd">-.-.</span></div>
+    <div class="mc"><span class="ml">D</span><br><span class="mcd">-..</span></div>
+    <div class="mc"><span class="ml">E</span><br><span class="mcd">.</span></div>
+    <div class="mc"><span class="ml">F</span><br><span class="mcd">..-.</span></div>
+    <div class="mc"><span class="ml">G</span><br><span class="mcd">--.</span></div>
+    <div class="mc"><span class="ml">H</span><br><span class="mcd">....</span></div>
+    <div class="mc"><span class="ml">I</span><br><span class="mcd">..</span></div>
+    <div class="mc"><span class="ml">J</span><br><span class="mcd">.---</span></div>
+    <div class="mc"><span class="ml">K</span><br><span class="mcd">-.-</span></div>
+    <div class="mc"><span class="ml">L</span><br><span class="mcd">.-..</span></div>
+    <div class="mc"><span class="ml">M</span><br><span class="mcd">--</span></div>
+    <div class="mc"><span class="ml">N</span><br><span class="mcd">-.</span></div>
+    <div class="mc"><span class="ml">O</span><br><span class="mcd">---</span></div>
+    <div class="mc"><span class="ml">P</span><br><span class="mcd">.--.</span></div>
+    <div class="mc"><span class="ml">Q</span><br><span class="mcd">--.-</span></div>
+    <div class="mc"><span class="ml">R</span><br><span class="mcd">.-.</span></div>
+    <div class="mc"><span class="ml">S</span><br><span class="mcd">...</span></div>
+    <div class="mc"><span class="ml">T</span><br><span class="mcd">-</span></div>
+    <div class="mc"><span class="ml">U</span><br><span class="mcd">..-</span></div>
+    <div class="mc"><span class="ml">V</span><br><span class="mcd">...-</span></div>
+    <div class="mc"><span class="ml">W</span><br><span class="mcd">.--</span></div>
+    <div class="mc"><span class="ml">X</span><br><span class="mcd">-..-</span></div>
+    <div class="mc"><span class="ml">Y</span><br><span class="mcd">-.--</span></div>
+    <div class="mc"><span class="ml">Z</span><br><span class="mcd">--..</span></div>
+  </div>
+  <div class="ig"><input class="if" id="i-l7" maxlength="10" placeholder="WORT..." onkeydown="if(event.key==='Enter')chk('l7')"><button class="btn btn-g" onclick="chk('l7')">✓</button></div>
+  <div class="fb" id="f-l7"></div>
+</div></div>
 
-      <div class="panel">
-        <span class="panel-tag">// ENTSCHLÜSSELUNG ERFORDERLICH //</span>
-        <h2>Cäsarscheibe – Protokoll Alpha</h2>
-        <p>Hans Kempers erstes Protokoll wurde mit einer <strong>Cäsar-Verschlüsselung</strong> gesichert. Auf dem Tisch liegt die physische Cäsarscheibe (Druckvorlage). Entschlüsselt die folgende Nachricht:</p>
-        <p class="mono">Verschiebung: <strong style="color:var(--amber)">+7 Stellen</strong> (jeder Buchstabe = 7 Positionen zurück im Alphabet)</p>
-      </div>
+<!-- QUIZ -->
+<div class="screen" id="s-quiz"><div class="sc">
+  <h3>Level 8 – Abschlussprüfung</h3>
+  <div class="qc" id="qc">Frage 1 / 15</div>
+  <div class="qs" id="qsc">Richtig: 0 / 0</div>
+  <div id="qbox"></div>
+  <div style="margin-top:12px">
+    <button class="btn btn-r" id="qnb" style="display:none" onclick="nxtQ()">Nächste Frage ▸</button>
+    <button class="btn btn-g" id="qfb" style="display:none" onclick="finQ()">Auswertung ▸</button>
+  </div>
+</div></div>
 
-      <div class="panel">
-        <span class="panel-tag">// VERSCHLÜSSELTE BOTSCHAFT //</span>
-        <div class="caesar-display">
-          <p class="cipher-text">ILÄZLYLUN</p>
-          <p class="shift-info">↑ Cäsar +7 | Entschlüsselt ergibt das Lösungswort</p>
-          <hr class="sep" style="margin:12px 0;">
-          <p style="font-size:11px; color:var(--text-dim); text-align:left;">
-            <strong style="color:var(--text)">Hilfe – Cäsar-Prinzip:</strong><br>
-            A=1, B=2 … Z=26. Verschiebung +7 bedeutet:<br>
-            Buchstabe im Code → 7 zurückzählen im Alphabet<br>
-            I(9)−7=B, L(12)−7=E, Ä→Ü... <br>
-            <em style="color:var(--amber)">Hinweis: Umlaute: Ä=Ae, Ö=Oe, Ü=Ue</em>
-          </p>
-        </div>
-      </div>
+<!-- QUIZ RESULT -->
+<div class="screen" id="s-qr"><div id="qrc"></div></div>
 
-      <div class="panel cyan">
-        <span class="panel-tag cyan">// CÄSAR-TABELLE (VERSCHIEBUNG +7) //</span>
-        <div class="caesar-display">
-          <p style="font-size:11px; color:var(--text-dim); margin-bottom:8px;">Code-Buchstabe → Original-Buchstabe</p>
-          <div class="caesar-row" id="caesar-table"></div>
-        </div>
-      </div>
+<!-- MINIGAME -->
+<div class="screen" id="s-mg"><div class="sc">
+  <h3>Finales Level – Viren-Scanner</h3>
+  <h2>System neustarten!</h2>
+  <p>Tippt auf die <span class="hl">Viren</span> (☠)! Fangt <strong>10 Viren</strong> in 30 Sekunden!</p>
+  <div class="mgs"><span>☠ <strong id="mgc">0</strong>/10</span><span>⏱ <strong id="mgt">30</strong>s</span></div>
+  <div class="mga" id="mga"></div><br>
+  <button class="btn btn-r" id="mgb" onclick="mgStart()">🎮 Minigame starten!</button>
+</div></div>
 
-      <div class="panel">
-        <span class="panel-tag">// PASSWORT EINGEBEN //</span>
-        <div class="input-group">
-          <label class="input-label" for="l1-input">ENTSCHLÜSSELTES WORT (DEUTSCH)</label>
-          <input class="code-input" id="l1-input" type="text" maxlength="12" placeholder="_ _ _ _ _ _ _ _" autocomplete="off" autocorrect="off" spellcheck="false">
-          <div class="feedback-msg" id="l1-feedback"></div>
-        </div>
-        <br>
-        <button class="btn btn-red btn-full" onclick="checkL1()">PROTOKOLL VERIFIZIEREN ▶</button>
-      </div>
+<!-- WIN -->
+<div class="screen" id="s-win">
+  <div class="ei">🏆</div>
+  <h1 style="color:var(--green)">SYSTEM WIEDERHERGESTELLT!</h1>
+  <div class="dl" style="background:var(--green)"></div>
+  <h2 style="color:var(--text-dim);font-weight:400">Mission erfolgreich!</h2>
+  <p>Ihr habt das Leitstellensystem rechtzeitig neu gestartet. Der Großbrand wird gelöscht – dank EUCH!</p>
+  <p id="wt" style="font-family:var(--mono);color:var(--green);font-size:1.2rem"></p>
+  <p style="color:var(--text-dim);font-size:.9rem;margin-top:24px">Ihr seid echte Rettungsprofis! 🚑 ✚</p><br>
+  <button class="btn btn-o" onclick="location.reload()">🔄 Nochmal spielen</button>
+</div>
 
-      <div class="clue-box">
-        <h3>💡 Joker-Hinweis</h3>
-        <p>Sucht auch nach dem <strong>physischen Hinweiszettel #1</strong>, der irgendwo im Raum angebracht ist – er gibt euch einen zusätzlichen Tipp!</p>
-      </div>
-
-    </div><!-- end screen-l1 -->
-
-
-    <!-- ═══════════════════════════════════════════════════════════
-         SCREEN 2: LEVEL 2 – ZÄHLRÄTSEL
-    ═══════════════════════════════════════════════════════════ -->
-    <div class="screen" id="screen-l2">
-
-      <div class="level-badge">LEVEL 2 – BESTANDSPRÜFUNG</div>
-
-      <div class="panel">
-        <span class="panel-tag">// SYSTEM-DIAGNOSE //</span>
-        <h2>Material-Inventur: Notfallkoffer</h2>
-        <p>Gut! Das erste Protokoll ist entschlüsselt. Nun verlangt das System eine <strong>Bestandsprüfung</strong> des Erste-Hilfe-Materials. Hans Kempers Protokoll sagt: <em style="color:var(--amber)">"Nur wer seinen Ausrüstungsstand kennt, kann im Notfall helfen."</em></p>
-        <p>Im Raum sind Erste-Hilfe-Gegenstände versteckt. <strong>Sucht und zählt sie!</strong></p>
-      </div>
-
-      <div class="panel amber">
-        <span class="panel-tag amber">// SUCHAUFTRAG //</span>
-        <h2>Was ist zu finden?</h2>
-        <div class="checklist">
-          <li><strong>Dreiecktücher</strong> – überall im Raum verteilt. Wie viele findet ihr?</li>
-          <li><strong>Verbandspäckchen</strong> – klein, weiß, mit rotem Kreuz. Zählen!</li>
-          <li><strong>Einweghandschuhe</strong> – einzelne Handschuhe zählen!</li>
-        </div>
-        <br>
-        <p>Der 4-stellige Zugangscode lautet: <strong style="color:var(--amber)">Dreiecktücher × Verbandspäckchen + Handschuhe</strong></p>
-        <p class="mono" style="margin-top:8px;">Beispiel: 3 Tücher, 4 Päckchen, 2 Handschuhe → Code: 1402 (3×4=12, +02 = 1202)</p>
-        <p style="color:var(--red); font-size:13px; margin-top:6px;">⚠ Für dieses Spiel ist die Lösung vorher vom Spielleiter festgelegt!</p>
-      </div>
-
-      <div class="panel">
-        <span class="panel-tag">// INVENTAR-CODE EINGEBEN //</span>
-        <div class="input-group">
-          <label class="input-label" for="l2-input">4-STELLIGER INVENTAR-CODE</label>
-          <input class="code-input" id="l2-input" type="number" maxlength="4" placeholder="_ _ _ _" autocomplete="off">
-          <div class="feedback-msg" id="l2-feedback"></div>
-        </div>
-        <br>
-        <button class="btn btn-red btn-full" onclick="checkL2()">CODE VERIFIZIEREN ▶</button>
-      </div>
-
-    </div><!-- end screen-l2 -->
-
-
-    <!-- ═══════════════════════════════════════════════════════════
-         SCREEN 3: LEVEL 3 – AUSSENAUFTRAG
-    ═══════════════════════════════════════════════════════════ -->
-    <div class="screen" id="screen-l3">
-
-      <div class="level-badge" style="border-color:var(--green-dim); color:var(--green)">LEVEL 3 – FELDMISSION AKTIV</div>
-
-      <div class="panel">
-        <span class="panel-tag">// AUSSENPROTOKOLL FREIGESCHALTET //</span>
-        <h2>Außenmission: 5 Stationen</h2>
-        <p>Hans Kempers letztes Protokoll ist <strong style="color:var(--green)">verteilt</strong> – auf 5 Außenstationen. Nehmt jetzt <strong>Stift und Papier</strong> mit. Das Tablet bleibt hier!</p>
-      </div>
-
-      <div class="panel green">
-        <span class="panel-tag green">// STATIONS-ÜBERSICHT //</span>
-        <div style="display:flex;flex-direction:column;gap:8px;">
-          <div class="station-item">
-            <div class="station-num">1</div>
-            <div class="station-info">
-              <div class="station-name">🚪 Treppenhaus</div>
-              <div class="station-desc">Oberer Stock, hinten an der Tür</div>
-            </div>
-          </div>
-          <div class="station-item">
-            <div class="station-num">2</div>
-            <div class="station-info">
-              <div class="station-name">🚲 Fahrradständer</div>
-              <div class="station-desc">Überdachter Bereich</div>
-            </div>
-          </div>
-          <div class="station-item">
-            <div class="station-num">3</div>
-            <div class="station-info">
-              <div class="station-name">🚌 Busfahrplan</div>
-              <div class="station-desc">Rätsel mit Fahrzeiten</div>
-            </div>
-          </div>
-          <div class="station-item">
-            <div class="station-num">4</div>
-            <div class="station-info">
-              <div class="station-name">🏓 Tischtennisplatte</div>
-              <div class="station-desc">Bewegungs-Challenge: 20 Team-Kniebeugen!</div>
-            </div>
-          </div>
-          <div class="station-item">
-            <div class="station-num">5</div>
-            <div class="station-info">
-              <div class="station-name">🏋️ Eingangstür Turnhalle</div>
-              <div class="station-desc">Finales Außen-Rätsel – ergibt das Passwort!</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="alert">
-        Merkt euch alle Zahlen und Buchstaben die ihr unterwegs sammelt – erst Station 5 ergibt das vollständige Passwort!
-      </div>
-
-      <div class="panel">
-        <span class="panel-tag">// RÜCKKEHR – PASSWORT EINGEBEN //</span>
-        <p style="margin-bottom:10px;">Wenn ihr alle 5 Stationen abgeschlossen habt, gebt hier das <strong>Finale Außen-Passwort</strong> (Station 5) ein:</p>
-        <div class="input-group">
-          <label class="input-label" for="l3-input">AUSSEN-PASSWORT (5 BUCHSTABEN)</label>
-          <input class="code-input" id="l3-input" type="text" maxlength="8" placeholder="_ _ _ _ _" autocomplete="off" autocorrect="off" spellcheck="false">
-          <div class="feedback-msg" id="l3-feedback"></div>
-        </div>
-        <br>
-        <button class="btn btn-green btn-full" onclick="checkL3()">PASSWORT ÜBERMITTELN ▶</button>
-      </div>
-
-    </div><!-- end screen-l3 -->
-
-
-    <!-- ═══════════════════════════════════════════════════════════
-         SCREEN 4: FINALE – DRK-QUIZ
-    ═══════════════════════════════════════════════════════════ -->
-    <div class="screen" id="screen-finale">
-
-      <div class="level-badge" style="border-color:var(--amber); color:var(--amber)">FINALE – SYSTEM-NEUSTART</div>
-
-      <div class="panel amber">
-        <span class="panel-tag amber">// LETZTER SCHRITT //</span>
-        <h2>DRK-Wissenscheck: Systemaktivierung</h2>
-        <p>Das System ist fast zurück! Für den finalen Neustart muss die Identität als DRK-Mitglied bestätigt werden. Beantwortet die Sicherheitsfrage korrekt:</p>
-      </div>
-
-      <div class="panel" id="quiz-panel">
-        <h2 id="quiz-question">Was bedeutet das Kürzel „NAW" im Rettungsdienst?</h2>
-        <br>
-        <div style="display:flex;flex-direction:column;gap:8px;" id="quiz-options">
-          <div class="quiz-option" onclick="checkQuiz(0)"><div class="quiz-letter">A</div> Notarzt-Wagen</div>
-          <div class="quiz-option" onclick="checkQuiz(1)"><div class="quiz-letter">B</div> Notfall-Alarm-Wagen</div>
-          <div class="quiz-option" onclick="checkQuiz(2)"><div class="quiz-letter">C</div> Nacht-Alarm-Wagen</div>
-          <div class="quiz-option" onclick="checkQuiz(3)"><div class="quiz-letter">D</div> Notaufnahme-Wagen</div>
-        </div>
-        <div class="feedback-msg" id="quiz-feedback" style="margin-top:10px;"></div>
-      </div>
-
-    </div><!-- end screen-finale -->
-
-
-    <!-- ═══════════════════════════════════════════════════════════
-         SCREEN 5: SUCCESS
-    ═══════════════════════════════════════════════════════════ -->
-    <div class="screen" id="screen-success">
-
-      <div class="panel green">
-        <span class="panel-tag green">// SYSTEM ONLINE //</span>
-        <div class="end-icon">🟢</div>
-        <h1 style="color:var(--green); text-shadow:0 0 20px rgba(0,232,122,0.5); text-align:center;">
-          SYSTEM WIEDERHERGESTELLT!
-        </h1>
-        <p style="text-align:center; color:var(--green); font-size:18px; font-weight:700;">Herzlichen Glückwunsch!</p>
-        <p style="text-align:center;">Die Leitstelle ist wieder aktiv. Der Großbrand wird koordiniert bekämpft. <strong style="color:var(--green)">Ihr habt alle Leben gerettet!</strong></p>
-      </div>
-
-      <div class="panel">
-        <span class="panel-tag">// EURE MISSION //</span>
-        <p>Zeit gestoppt bei: <strong id="success-time" style="color:var(--amber); font-family:'Share Tech Mono',monospace; font-size:18px;">--:--</strong></p>
-        <p style="color:var(--text-dim); font-size:13px;">Das DRK-Leitstellen-Team bedankt sich. Ihr habt bewiesen: Teamwork rettet Leben!</p>
-      </div>
-
-      <div class="panel amber">
-        <span class="panel-tag amber">// REFLEXIONSFRAGE FÜR DANACH //</span>
-        <h2>💬 Nachbesprechung</h2>
-        <p><strong>Frage an euer Team:</strong> Was war für euch die größte Herausforderung – das Rätseln, die Teamarbeit oder der Zeitdruck? Und: Wie überträgt sich das auf echte Rettungssituationen?</p>
-        <br>
-        <p style="font-size:13px; color:var(--text-dim);">Diskutiert in der Gruppe! Euer Spielleiter moderiert die Runde.</p>
-      </div>
-
-      <button class="btn btn-outline btn-full" onclick="resetGame()">↺ NEUES SPIEL STARTEN</button>
-
-    </div><!-- end screen-success -->
-
-
-    <!-- ═══════════════════════════════════════════════════════════
-         SCREEN 6: GAME OVER
-    ═══════════════════════════════════════════════════════════ -->
-    <div class="screen" id="screen-gameover">
-
-      <div class="panel">
-        <span class="panel-tag">// VERBINDUNG UNTERBROCHEN //</span>
-        <div class="end-icon">🔴</div>
-        <h1 style="text-align:center;">SYSTEMABSTURZ</h1>
-        <p style="text-align:center; color:var(--red); font-size:16px; font-weight:700;">Zeit abgelaufen – Der Brand ist außer Kontrolle.</p>
-        <p style="text-align:center;">Ihr habt tapfer gekämpft. Im Rettungsdienst zählt jede Sekunde – das habt ihr am eigenen Leib erfahren.</p>
-      </div>
-
-      <div class="panel amber">
-        <span class="panel-tag amber">// REFLEXIONSFRAGE FÜR DANACH //</span>
-        <h2>💬 Nachbesprechung</h2>
-        <p><strong>Frage an euer Team:</strong> An welchem Rätsel habt ihr am längsten gerätselt? Was würdet ihr beim nächsten Mal anders machen – und wie wichtig ist Kommunikation im Team, wenn Zeit knapp wird?</p>
-        <br>
-        <p style="font-size:13px; color:var(--text-dim);">Diskutiert in der Gruppe! Euer Spielleiter moderiert die Runde.</p>
-      </div>
-
-      <button class="btn btn-red btn-full" onclick="resetGame()">↺ NOCHMAL VERSUCHEN</button>
-
-    </div><!-- end screen-gameover -->
-
-  </div><!-- end content -->
-</div><!-- end app -->
+<!-- LOSE -->
+<div class="screen" id="s-lose">
+  <div class="ei">💀</div>
+  <h1 style="color:var(--red-glow)">SYSTEMABSTURZ</h1>
+  <h2 style="color:var(--text-dim);font-weight:400">Die Zeit ist abgelaufen...</h2>
+  <div class="dl"></div>
+  <p>Das System konnte nicht rechtzeitig wiederhergestellt werden. Beim nächsten Mal schafft ihr es!</p><br>
+  <button class="btn btn-r" onclick="location.reload()">🔄 Nochmal versuchen</button>
+</div>
 
 <script>
-// ════════════════════════════════════════════════════════
-// KONFIGURATION – HIER ANPASSEN
-// ════════════════════════════════════════════════════════
-const CONFIG = {
-  durationMinutes: 60,
+const S={tr:false,tl:3600,ti:null,att:{l1:0,l2:0,l3:0,out:0,l5:0,l7:0},mx:3,pr:0,tot:9,
+  qi:0,qc:0,qa:0,mi:null,mt:null,mc:0,mtl:30,ma:false};
 
-  // LEVEL 1: Cäsar-Rätsel
-  // "ILÄZLYLUN" verschlüsselt mit +7 = "BEATMUNG"
-  // (Ä→Ae: I-7=B, L-7=E, Ä→A(kodiert), Z-7=T, L-7=M, Y-7=... )
-  // Einfachere Variante: "BEATMUNG"
-  l1Answer: "BEATMUNG",
-
-  // LEVEL 2: Zählrätsel
-  // 3 Dreiecktücher × 4 Verbandspäckchen + 06 Handschuhe = 1806
-  // SPIELLEITER: Anpassen je nach verstecktem Material!
-  l2Answer: "1806",
-
-  // LEVEL 3: Außen-Passwort (Station 5)
-  l3Answer: "NOTRUF",
-
-  // Finale Quiz: korrekte Antwort-Index (0=A, 1=B, 2=C, 3=D)
-  quizCorrectIndex: 0
+const LV={
+  l1:{a:'NOTRUF',nx:'s-l2',p:2,h:'Q→N, R→O, W→T, U→R, X→U, I→F = NOTRUF'},
+  l2:{a:'HELD',nx:'s-l3',p:3,h:'HELM(H) VERBAND(E) PULS(L) DREIECKTUCH(D) = HELD'},
+  l3:{a:'324',nx:'s-out-i',p:4,h:'3 Lego + 2 Stifte + 4 Klebezettel = 324'},
+  out:{a:'138',nx:'s-l5',p:5,h:'(13+6) × 8 − 14 = 138'},
+  l5:{a:'BRAND',nx:'s-l7',p:6,h:'B=2 R=18 A=1 N=14 D=4 = BRAND'},
+  l7:{a:'FUNK',nx:'s-quiz',p:7,h:'..-. = F, ..- = U, -. = N, -.- = K = FUNK'},
 };
 
-// ════════════════════════════════════════════════════════
-// STATE
-// ════════════════════════════════════════════════════════
-let timerInterval = null;
-let secondsLeft = CONFIG.durationMinutes * 60;
-let gameStarted = false;
-let stoppedTime = null;
-let currentSlide = 0;
-const totalSlides = 3;
-
-// ════════════════════════════════════════════════════════
-// CÄSAR TABELLE AUFBAUEN
-// ════════════════════════════════════════════════════════
-function buildCaesarTable() {
-  const alpha = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-  const container = document.getElementById('caesar-table');
-  let html = '';
-  for (let i = 0; i < 26; i++) {
-    const coded = alpha[(i + 7) % 26];
-    const orig = alpha[i];
-    html += `<div style="display:flex;flex-direction:column;align-items:center;margin:2px;">
-      <div class="caesar-cell header">${coded}</div>
-      <div style="font-size:10px;color:var(--text-dim);font-family:'Share Tech Mono',monospace;">↓</div>
-      <div class="caesar-cell val">${orig}</div>
-    </div>`;
-  }
-  container.innerHTML = html;
-}
-buildCaesarTable();
-
-// ════════════════════════════════════════════════════════
-// SLIDES
-// ════════════════════════════════════════════════════════
-document.getElementById('next-slide').addEventListener('click', () => {
-  if (currentSlide < totalSlides - 1) {
-    setSlide(currentSlide + 1);
-  } else {
-    // Letzte Slide – Start-Button zeigen
-    document.getElementById('next-slide').style.display = 'none';
-    document.getElementById('prev-slide').style.display = 'none';
-    document.getElementById('start-btn-wrap').style.display = 'block';
-    document.querySelectorAll('.dot').forEach(d => d.classList.remove('active'));
-  }
-});
-document.getElementById('prev-slide').addEventListener('click', () => {
-  if (currentSlide > 0) setSlide(currentSlide - 1);
-});
-
-function setSlide(n) {
-  document.getElementById(`slide-${currentSlide}`).classList.remove('active');
-  document.getElementById(`dot-${currentSlide}`).classList.remove('active');
-  currentSlide = n;
-  document.getElementById(`slide-${currentSlide}`).classList.add('active');
-  document.getElementById(`dot-${currentSlide}`).classList.add('active');
-  document.getElementById('prev-slide').style.visibility = n === 0 ? 'hidden' : 'visible';
-  document.getElementById('next-slide').textContent = n === totalSlides - 1 ? 'BEREIT ✓' : 'WEITER ▶';
-}
-
-// ════════════════════════════════════════════════════════
-// TIMER
-// ════════════════════════════════════════════════════════
-function formatTime(s) {
-  const m = Math.floor(s / 60);
-  const sec = s % 60;
-  return `${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
-}
-
-function startTimer() {
-  timerInterval = setInterval(() => {
-    secondsLeft--;
-    document.getElementById('timer').textContent = formatTime(secondsLeft);
-    // Dringlichkeit unter 5 Minuten
-    if (secondsLeft <= 300) {
-      document.getElementById('timer').classList.add('urgent');
-    }
-    if (secondsLeft <= 0) {
-      clearInterval(timerInterval);
-      gameOver();
-    }
-  }, 1000);
-}
-
-// ════════════════════════════════════════════════════════
-// GAME FLOW
-// ════════════════════════════════════════════════════════
-function showScreen(id) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
-  document.getElementById('content').scrollTo(0,0);
-}
-
-function startGame() {
-  gameStarted = true;
-  startTimer();
-  showScreen('screen-l1');
-  document.getElementById('phase-text').textContent = 'LEVEL 1';
-}
-
-function gameOver() {
-  showScreen('screen-gameover');
-  document.getElementById('phase-text').textContent = 'GAME OVER';
-}
-
-function resetGame() {
-  clearInterval(timerInterval);
-  secondsLeft = CONFIG.durationMinutes * 60;
-  gameStarted = false;
-  currentSlide = 0;
-  document.getElementById('timer').textContent = formatTime(secondsLeft);
-  document.getElementById('timer').classList.remove('urgent');
-  document.getElementById('phase-text').textContent = 'INTRO';
-  // Reset slides
-  document.querySelectorAll('.story-slide').forEach((s,i) => {
-    s.classList.toggle('active', i === 0);
-  });
-  document.querySelectorAll('.dot').forEach((d,i) => {
-    d.classList.toggle('active', i === 0);
-  });
-  document.getElementById('next-slide').style.display = '';
-  document.getElementById('next-slide').textContent = 'WEITER ▶';
-  document.getElementById('prev-slide').style.display = '';
-  document.getElementById('prev-slide').style.visibility = 'hidden';
-  document.getElementById('start-btn-wrap').style.display = 'none';
-  // Reset inputs
-  ['l1','l2','l3'].forEach(id => {
-    const el = document.getElementById(`${id}-input`);
-    if (el) { el.value=''; el.className='code-input'; }
-    const fb = document.getElementById(`${id}-feedback`);
-    if (fb) { fb.className='feedback-msg'; fb.textContent=''; }
-  });
-  // Reset quiz
-  document.querySelectorAll('.quiz-option').forEach(o => {
-    o.className='quiz-option'; o.onclick=o._orig||o.onclick;
-  });
-  const qfb = document.getElementById('quiz-feedback');
-  if (qfb) { qfb.className='feedback-msg'; qfb.textContent=''; }
-
-  showScreen('screen-intro');
-}
-
-// ════════════════════════════════════════════════════════
-// LEVEL CHECKS
-// ════════════════════════════════════════════════════════
-function shake(inputId) {
-  const el = document.getElementById(inputId);
-  el.classList.add('error');
-  setTimeout(() => el.classList.remove('error'), 400);
-}
-
-function setFeedback(id, type, msg) {
-  const el = document.getElementById(id);
-  el.className = `feedback-msg ${type}`;
-  el.textContent = msg;
-}
-
-// ─── Level 1 ───
-function checkL1() {
-  const val = document.getElementById('l1-input').value.trim().toUpperCase().replace(/\s/g,'');
-  if (val === CONFIG.l1Answer) {
-    document.getElementById('l1-input').classList.add('success');
-    setFeedback('l1-feedback', 'success', `✓ KORREKT: "${CONFIG.l1Answer}" – Protokoll Alpha entschlüsselt!`);
-    setTimeout(() => {
-      showScreen('screen-l2');
-      document.getElementById('phase-text').textContent = 'LEVEL 2';
-    }, 1200);
-  } else {
-    shake('l1-input');
-    setFeedback('l1-feedback', 'error', '✗ FALSCH – Überprüft die Verschiebung! Jeder Buchstabe 7 Positionen zurück.');
-  }
-}
-
-// ─── Level 2 ───
-function checkL2() {
-  const val = document.getElementById('l2-input').value.trim();
-  if (val === CONFIG.l2Answer) {
-    document.getElementById('l2-input').classList.add('success');
-    setFeedback('l2-feedback', 'success', `✓ INVENTAR BESTÄTIGT – Außenprotokoll wird freigeschaltet...`);
-    setTimeout(() => {
-      showScreen('screen-l3');
-      document.getElementById('phase-text').textContent = 'LEVEL 3';
-    }, 1200);
-  } else {
-    shake('l2-input');
-    setFeedback('l2-feedback', 'error', '✗ FALSCH – Habt ihr alle Gegenstände im Raum gefunden? Zählt nochmal!');
-  }
-}
-
-// ─── Level 3 ───
-function checkL3() {
-  const val = document.getElementById('l3-input').value.trim().toUpperCase().replace(/\s/g,'');
-  if (val === CONFIG.l3Answer) {
-    document.getElementById('l3-input').classList.add('success');
-    setFeedback('l3-feedback', 'success', `✓ PASSWORT AKZEPTIERT – Finales Protokoll wird geladen...`);
-    setTimeout(() => {
-      showScreen('screen-finale');
-      document.getElementById('phase-text').textContent = 'FINALE';
-    }, 1200);
-  } else {
-    shake('l3-input');
-    setFeedback('l3-feedback', 'error', '✗ PASSWORT NICHT ERKANNT – Habt ihr alle 5 Stationen besucht?');
-  }
-}
-
-// ─── Quiz ───
-function checkQuiz(selected) {
-  const options = document.querySelectorAll('.quiz-option');
-  options.forEach(o => o.onclick = null); // Disable further clicks
-
-  if (selected === CONFIG.quizCorrectIndex) {
-    options[selected].classList.add('correct');
-    setFeedback('quiz-feedback', 'success', '✓ KORREKT! NAW = Notarzt-Wagen. System-Neustart erfolgreich!');
-    clearInterval(timerInterval);
-    const elapsed = CONFIG.durationMinutes * 60 - secondsLeft;
-    const eMin = Math.floor(elapsed / 60);
-    const eSec = elapsed % 60;
-    stoppedTime = `${String(eMin).padStart(2,'0')}:${String(eSec).padStart(2,'0')}`;
-    setTimeout(() => {
-      document.getElementById('success-time').textContent = stoppedTime;
-      showScreen('screen-success');
-      document.getElementById('phase-text').textContent = 'ERFOLG ✓';
-    }, 1500);
-  } else {
-    options[selected].classList.add('wrong');
-    options[CONFIG.quizCorrectIndex].classList.add('correct');
-    setFeedback('quiz-feedback', 'error', '✗ Nicht ganz – aber ihr habt es geschafft! Die richtige Antwort: NAW = Notarzt-Wagen.');
-    clearInterval(timerInterval);
-    const elapsed = CONFIG.durationMinutes * 60 - secondsLeft;
-    const eMin = Math.floor(elapsed / 60);
-    const eSec = elapsed % 60;
-    stoppedTime = `${String(eMin).padStart(2,'0')}:${String(eSec).padStart(2,'0')}`;
-    setTimeout(() => {
-      document.getElementById('success-time').textContent = stoppedTime;
-      showScreen('screen-success');
-      document.getElementById('phase-text').textContent = 'ABGESCHLOSSEN';
-    }, 2000);
-  }
-}
-
-// Enter-Taste in Inputs
-document.getElementById('l1-input').addEventListener('keydown', e => { if(e.key==='Enter') checkL1(); });
-document.getElementById('l2-input').addEventListener('keydown', e => { if(e.key==='Enter') checkL2(); });
-document.getElementById('l3-input').addEventListener('keydown', e => { if(e.key==='Enter') checkL3(); });
-</script>
-</body>
-</html>
+function go(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document
