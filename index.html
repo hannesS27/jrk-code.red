@@ -6,308 +6,477 @@
 <title>CODE RED – Systemausfall in der Leitstelle</title>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-:root{--bg:#0a0e14;--bg2:#111820;--red:#dc2626;--red-glow:#ff3333;--green:#22c55e;--green-dark:#16a34a;--amber:#f59e0b;--text:#e2e8f0;--text-dim:#64748b;--text-bright:#f8fafc;--mono:'Courier New',Consolas,monospace;--sans:'Segoe UI','Helvetica Neue',Arial,sans-serif}
+:root{
+  --bg:#060a10;--bg2:#0d1520;--bg3:#111d2e;
+  --red:#dc2626;--red-glow:#ff3333;--red-dark:#7f1d1d;
+  --green:#22c55e;--green-dark:#16a34a;--amber:#f59e0b;
+  --text:#cbd5e1;--text-dim:#475569;--text-bright:#f1f5f9;
+  --mono:'Courier New',Consolas,monospace;--sans:system-ui,'Segoe UI',sans-serif;
+}
 html,body{height:100%;overflow:hidden;font-family:var(--sans);background:var(--bg);color:var(--text)}
-body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.08) 2px,rgba(0,0,0,.08) 4px);pointer-events:none;z-index:9999}
-.screen{display:none;flex-direction:column;align-items:center;justify-content:center;height:100vh;padding:24px;text-align:center;overflow-y:auto;animation:fadeIn .5s ease}
+body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.06) 2px,rgba(0,0,0,0.06) 4px);pointer-events:none;z-index:9998}
+body::before{content:'';position:fixed;inset:0;opacity:.03;background-image:linear-gradient(rgba(220,38,38,.3) 1px,transparent 1px),linear-gradient(90deg,rgba(220,38,38,.3) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0}
+.screen{display:none;flex-direction:column;align-items:center;justify-content:flex-start;min-height:100vh;padding:24px 20px;text-align:center;overflow-y:auto;animation:sIn .5s ease;position:relative;z-index:1;padding-top:70px;padding-bottom:80px}
 .screen.active{display:flex}
-@keyframes fadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
-#timer-bar{display:none;position:fixed;top:0;left:0;right:0;height:52px;background:rgba(10,14,20,.95);border-bottom:2px solid var(--red);z-index:1000;align-items:center;justify-content:center;gap:12px;font-family:var(--mono);font-size:1.4rem;color:var(--red-glow)}
+.screen.vcenter{justify-content:center;padding-top:24px}
+@keyframes sIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+#timer-bar{display:none;position:fixed;top:0;left:0;right:0;height:54px;background:linear-gradient(180deg,rgba(6,10,16,.98),rgba(6,10,16,.92));border-bottom:2px solid var(--red);backdrop-filter:blur(8px);z-index:9000;align-items:center;justify-content:space-between;padding:0 16px}
 #timer-bar.visible{display:flex}
-#timer-bar .ti{animation:pulse 1s infinite}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
-#timer-bar.warning{border-bottom-color:var(--amber);color:var(--amber)}
-#timer-bar.critical{animation:tf .5s infinite;border-bottom-color:#ff0000}
-@keyframes tf{0%,100%{background:rgba(10,14,20,.95)}50%{background:rgba(220,38,38,.3)}}
-#progress-wrap{display:none;position:fixed;bottom:0;left:0;right:0;height:6px;background:var(--bg2);z-index:1000}
+.timer-left{display:flex;align-items:center;gap:8px}
+.timer-dot{width:8px;height:8px;border-radius:50%;background:var(--red);animation:bDot 1s infinite}
+@keyframes bDot{0%,100%{opacity:1}50%{opacity:.2}}
+#timer-display{font-family:var(--mono);font-size:1.5rem;font-weight:700;color:var(--red-glow);text-shadow:0 0 12px rgba(220,38,38,.4)}
+#level-ind{font-size:.7rem;color:var(--text-dim);font-family:var(--mono);text-transform:uppercase;letter-spacing:.08em;max-width:40%;text-align:right}
+#timer-bar.warning{border-bottom-color:var(--amber)}
+#timer-bar.warning #timer-display{color:var(--amber)}
+#timer-bar.critical{animation:barF .6s infinite}
+#timer-bar.critical #timer-display{color:#ff4444}
+@keyframes barF{0%,100%{background:rgba(6,10,16,.98)}50%{background:rgba(127,29,29,.5)}}
+#progress-wrap{display:none;position:fixed;bottom:0;left:0;right:0;height:5px;background:var(--bg2);z-index:9000}
 #progress-wrap.visible{display:block}
-#progress-bar{height:100%;background:linear-gradient(90deg,var(--red),var(--green));width:0%;transition:width .6s}
-h1{font-size:clamp(1.8rem,5vw,2.8rem);font-weight:800;letter-spacing:-.02em;margin-bottom:12px}
-h2{font-size:clamp(1.2rem,3.5vw,1.8rem);font-weight:700;margin-bottom:8px}
-h3{font-size:1.1rem;font-weight:600;color:var(--red);text-transform:uppercase;letter-spacing:.1em;margin-bottom:16px}
-p,.desc{font-size:1rem;line-height:1.6;color:var(--text-dim);max-width:560px;margin:0 auto 16px}
+#progress-bar{height:100%;background:linear-gradient(90deg,var(--red),var(--amber),var(--green));width:0%;transition:width .8s cubic-bezier(.4,0,.2,1)}
+h1{font-size:clamp(1.6rem,5vw,2.6rem);font-weight:800;letter-spacing:-.03em;line-height:1.1;margin-bottom:8px}
+h2{font-size:clamp(1.1rem,3vw,1.5rem);font-weight:600;margin-bottom:6px;color:var(--text-bright)}
+h3{font-size:.8rem;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:.15em;margin-bottom:14px}
+p{font-size:.95rem;line-height:1.6;color:var(--text);max-width:540px;margin:0 auto 12px}
 .hl{color:var(--red-glow);font-weight:700}
-.ct{font-family:var(--mono);color:var(--green);font-size:1.3rem;background:rgba(34,197,94,.1);padding:8px 16px;border-radius:6px;border:1px solid rgba(34,197,94,.2);display:inline-block;margin:8px 0;letter-spacing:.15em}
-.gl{position:relative;font-family:var(--mono);color:var(--red-glow);text-shadow:0 0 20px rgba(220,38,38,.5)}
-.gl::before,.gl::after{content:attr(data-text);position:absolute;top:0;left:0;right:0}
-.gl::before{animation:g1 2s infinite;color:var(--red);clip-path:inset(20% 0 60% 0)}
-.gl::after{animation:g2 2s infinite;color:#ff6666;clip-path:inset(60% 0 10% 0)}
-@keyframes g1{0%,100%{transform:translateX(0)}20%{transform:translateX(-3px)}40%{transform:translateX(3px)}60%{transform:translateX(-1px)}}
-@keyframes g2{0%,100%{transform:translateX(0)}30%{transform:translateX(2px)}50%{transform:translateX(-4px)}70%{transform:translateX(1px)}}
-.btn{display:inline-flex;align-items:center;gap:8px;padding:14px 32px;border:none;border-radius:8px;font-size:1.05rem;font-weight:700;cursor:pointer;transition:all .2s;text-transform:uppercase;letter-spacing:.06em}
-.btn-r{background:var(--red);color:#fff;box-shadow:0 0 20px rgba(220,38,38,.3)}
-.btn-r:hover{background:#ef4444;box-shadow:0 0 30px rgba(220,38,38,.5);transform:translateY(-1px)}
-.btn-g{background:var(--green-dark);color:#fff;box-shadow:0 0 20px rgba(22,163,74,.3)}
-.btn-g:hover{background:var(--green)}
-.btn-o{background:transparent;color:var(--text);border:2px solid var(--text-dim)}
-.btn-o:hover{border-color:var(--text);background:rgba(255,255,255,.05)}
-.btn-s{padding:20px 48px;font-size:1.3rem;border-radius:12px;animation:sp 2s infinite}
-@keyframes sp{0%,100%{box-shadow:0 0 20px rgba(220,38,38,.3)}50%{box-shadow:0 0 40px rgba(220,38,38,.6)}}
-.ig{display:flex;gap:8px;margin:16px auto;max-width:400px}
-.if{flex:1;padding:14px 16px;background:var(--bg2);border:2px solid var(--text-dim);border-radius:8px;color:var(--text-bright);font-family:var(--mono);font-size:1.2rem;text-align:center;text-transform:uppercase;letter-spacing:.1em}
-.if:focus{outline:none;border-color:var(--red);box-shadow:0 0 12px rgba(220,38,38,.3)}
-.if.ok{border-color:var(--green);background:rgba(34,197,94,.1)}
-.if.bad{border-color:#ef4444;animation:shake .4s}
-@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
-.fb{font-size:.9rem;min-height:24px;margin-top:8px}
-.fb.err{color:#ef4444}
-.fb.suc{color:var(--green)}
-.pn{background:var(--bg2);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:24px;max-width:560px;width:100%;margin:12px auto;text-align:left}
-.pn ul{list-style:none;padding:0}
-.pn li{padding:6px 0;padding-left:20px;position:relative;color:var(--text-dim)}
-.pn li::before{content:'▸';position:absolute;left:0;color:var(--red)}
-.qo{display:block;width:100%;padding:14px 16px;background:var(--bg2);border:2px solid rgba(255,255,255,.1);border-radius:8px;color:var(--text);font-size:1rem;cursor:pointer;text-align:left;transition:all .15s;margin-bottom:8px}
-.qo:hover{border-color:var(--text-dim);background:rgba(255,255,255,.05)}
-.qo.ca{border-color:var(--green)!important;background:rgba(34,197,94,.15)!important;color:var(--text-bright)!important}
-.qo.wa{border-color:#ef4444!important;background:rgba(239,68,68,.15)!important}
-.qo:disabled{cursor:default;opacity:.7}
-.qs{font-family:var(--mono);font-size:1.3rem;color:var(--amber)}
-.qc{font-family:var(--mono);font-size:.85rem;color:var(--text-dim);margin-bottom:8px}
-.mga{width:100%;max-width:500px;height:300px;background:var(--bg2);border:2px solid var(--red);border-radius:12px;position:relative;overflow:hidden;margin:12px auto;touch-action:manipulation}
-.vt{position:absolute;width:60px;height:60px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:2rem;user-select:none;-webkit-user-select:none;background:rgba(220,38,38,.2);border:2px solid var(--red);animation:vp .3s ease}
-@keyframes vp{from{transform:scale(0)}to{transform:scale(1)}}
-.vt.ct2{background:rgba(34,197,94,.3)!important;border-color:var(--green)!important;transform:scale(1.3);opacity:0;transition:all .3s}
-.mgs{display:flex;gap:24px;justify-content:center;margin:8px 0;font-family:var(--mono)}
-.mgs span{font-size:1.1rem}
-.ei{font-size:4rem;margin-bottom:16px}
-.sc{overflow-y:auto;max-height:calc(100vh - 80px);padding:20px;width:100%;padding-top:60px}
-.dl{width:80px;height:3px;background:var(--red);margin:12px auto;border-radius:2px}
-.cr{color:var(--red-glow);font-size:2.5rem;margin-bottom:8px}
-.mt{display:grid;grid-template-columns:repeat(auto-fill,minmax(75px,1fr));gap:4px;max-width:500px;margin:12px auto;font-family:var(--mono);font-size:.85rem}
-.mc{background:var(--bg2);border:1px solid rgba(255,255,255,.08);padding:6px;border-radius:4px;text-align:center}
-.ml{color:var(--amber);font-weight:700;font-size:1rem}
-.mcd{color:var(--text-dim);font-size:.8rem}
+.hl-g{color:var(--green);font-weight:700}
+.hl-a{color:var(--amber);font-weight:700}
+.code-text{font-family:var(--mono);color:var(--green);font-size:1.15rem;background:rgba(34,197,94,.08);padding:10px 20px;border-radius:8px;border:1px solid rgba(34,197,94,.15);display:inline-block;margin:10px 0;letter-spacing:.12em}
+.deco-line{width:60px;height:2px;background:var(--red);margin:10px auto;border-radius:1px}
+.cross-icon{color:var(--red-glow);font-size:2rem;margin-bottom:4px;text-shadow:0 0 20px rgba(220,38,38,.3)}
+.glitch{position:relative;font-family:var(--mono);color:var(--red-glow);text-shadow:0 0 30px rgba(220,38,38,.4)}
+.glitch::before,.glitch::after{content:attr(data-text);position:absolute;top:0;left:0;right:0}
+.glitch::before{animation:g1 3s infinite linear;clip-path:inset(15% 0 65% 0);color:#ff4444}
+.glitch::after{animation:g2 3s infinite linear;clip-path:inset(65% 0 5% 0);color:#cc2222}
+@keyframes g1{0%,100%{transform:translateX(0)}15%{transform:translateX(-3px)}30%{transform:translateX(2px)}}
+@keyframes g2{0%,100%{transform:translateX(0)}20%{transform:translateX(2px)}40%{transform:translateX(-3px)}}
+.sys-log{font-family:var(--mono);font-size:.7rem;color:var(--text-dim);text-align:left;max-width:540px;margin:12px auto;padding:10px 14px;background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.04);border-radius:6px;line-height:1.8}
+.log-r{color:var(--red)}.log-g{color:var(--green)}.log-a{color:var(--amber)}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:13px 28px;border:none;border-radius:8px;font-size:.95rem;font-weight:700;cursor:pointer;transition:all .2s;text-transform:uppercase;letter-spacing:.06em;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.btn-red{background:var(--red);color:#fff;box-shadow:0 4px 20px rgba(220,38,38,.25)}
+.btn-red:active{background:#ef4444;transform:translateY(-1px)}
+.btn-green{background:var(--green-dark);color:#fff;box-shadow:0 4px 20px rgba(22,163,74,.25)}
+.btn-green:active{background:var(--green)}
+.btn-outline{background:transparent;color:var(--text);border:1.5px solid var(--text-dim);font-size:.85rem}
+.btn-big{padding:18px 44px;font-size:1.15rem;border-radius:10px;animation:bPulse 2.5s infinite}
+@keyframes bPulse{0%,100%{box-shadow:0 4px 20px rgba(220,38,38,.25)}50%{box-shadow:0 4px 40px rgba(220,38,38,.5)}}
+.input-group{display:flex;gap:8px;margin:14px auto;max-width:380px}
+.input-field{flex:1;padding:13px 14px;background:var(--bg2);border:2px solid rgba(255,255,255,.1);border-radius:8px;color:var(--text-bright);font-family:var(--mono);font-size:1.15rem;text-align:center;text-transform:uppercase;letter-spacing:.12em}
+.input-field:focus{outline:none;border-color:var(--red);box-shadow:0 0 16px rgba(220,38,38,.2)}
+.input-field.correct{border-color:var(--green);background:rgba(34,197,94,.08);color:var(--green)}
+.input-field.wrong{border-color:#ef4444;animation:shake .4s}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+.feedback{font-size:.82rem;min-height:22px;margin-top:6px;font-family:var(--mono)}
+.feedback.error{color:#ef4444}.feedback.success{color:var(--green)}
+.panel{background:var(--bg2);border:1px solid rgba(255,255,255,.06);border-radius:10px;padding:20px;max-width:540px;width:100%;margin:10px auto;text-align:left}
+.panel-dark{background:rgba(0,0,0,.5);border-color:rgba(220,38,38,.1)}
+.panel h4{color:var(--red);font-size:.75rem;text-transform:uppercase;letter-spacing:.12em;margin-bottom:10px}
+.panel ul{list-style:none;padding:0}
+.panel li{padding:5px 0 5px 18px;position:relative;color:var(--text);font-size:.9rem;line-height:1.5}
+.panel li::before{content:'▹';position:absolute;left:0;color:var(--red);font-size:.8rem}
+.panel li strong{color:var(--text-bright)}
+.module-name{font-family:var(--mono);font-size:.7rem;color:var(--green);letter-spacing:.2em;text-transform:uppercase;margin-bottom:6px}
+.char-badge{display:inline-flex;align-items:center;gap:8px;background:var(--bg2);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:8px 14px;margin:8px auto;font-size:.85rem}
+.char-badge .avatar{width:32px;height:32px;border-radius:50%;background:var(--red-dark);display:flex;align-items:center;justify-content:center;font-size:1rem}
+.quiz-wrap{max-width:540px;width:100%;margin:0 auto}
+.quiz-q{font-size:1rem;font-weight:700;margin-bottom:14px;text-align:left;color:var(--text-bright);line-height:1.4}
+.quiz-num{color:var(--red);font-family:var(--mono);font-size:.85rem}
+.quiz-options{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.quiz-opt{display:block;width:100%;padding:12px 14px;background:var(--bg2);border:1.5px solid rgba(255,255,255,.08);border-radius:8px;color:var(--text);font-size:.9rem;cursor:pointer;text-align:left;transition:all .15s;-webkit-tap-highlight-color:transparent}
+.quiz-opt:active{transform:scale(.98)}
+.quiz-opt.ok{border-color:var(--green)!important;background:rgba(34,197,94,.12)!important;color:var(--text-bright)!important}
+.quiz-opt.nok{border-color:#ef4444!important;background:rgba(239,68,68,.12)!important}
+.quiz-opt:disabled{cursor:default}
+.qbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;font-family:var(--mono);font-size:.8rem;color:var(--text-dim)}
+.qbar .gc{color:var(--green)}
+.qprog{height:3px;background:var(--bg);border-radius:2px;overflow:hidden;margin-bottom:16px}
+.qprog-fill{height:100%;background:var(--amber);transition:width .4s}
+.mg-area{width:100%;max-width:480px;height:280px;background:var(--bg2);border:2px solid var(--red);border-radius:12px;position:relative;overflow:hidden;margin:10px auto;background-image:radial-gradient(circle at 50% 50%,rgba(220,38,38,.03) 0%,transparent 70%)}
+.virus{position:absolute;width:56px;height:56px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.8rem;background:rgba(220,38,38,.15);border:2px solid var(--red);animation:vPop .25s cubic-bezier(.34,1.56,.64,1);user-select:none;-webkit-tap-highlight-color:transparent}
+@keyframes vPop{from{transform:scale(0);opacity:0}to{transform:scale(1);opacity:1}}
+.virus.caught{background:rgba(34,197,94,.25)!important;border-color:var(--green)!important;transform:scale(1.4)!important;opacity:0;transition:all .25s}
+.mg-stats{display:flex;gap:20px;justify-content:center;margin:8px 0;font-family:var(--mono);font-size:.9rem}
+.confetti{position:fixed;top:-10px;font-size:1.5rem;animation:cFall linear forwards;z-index:9999;pointer-events:none}
+@keyframes cFall{to{top:110vh;transform:rotate(720deg)}}
+.rule-num{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--red);color:#fff;font-size:.65rem;font-weight:700;margin-right:8px;flex-shrink:0}
+.rule-item{display:flex;align-items:flex-start;padding:5px 0;font-size:.88rem;line-height:1.5}
+@media(max-width:380px){.btn{padding:11px 20px;font-size:.85rem}.panel{padding:14px}}
 </style>
 </head>
 <body>
-<div id="timer-bar"><span class="ti">⏱</span><span id="td">60:00</span></div>
+
+<div id="timer-bar">
+  <div class="timer-left"><span class="timer-dot"></span><span id="timer-display">60:00</span></div>
+  <span id="level-ind">Bereit</span>
+</div>
 <div id="progress-wrap"><div id="progress-bar"></div></div>
 
 <!-- TITLE -->
-<div class="screen active" id="s-title">
-  <div class="cr">✚</div>
-  <h1 class="gl" data-text="CODE RED">CODE RED</h1>
-  <h2 style="color:var(--text-dim);font-weight:400">Systemausfall in der Leitstelle</h2>
-  <div class="dl"></div>
-  <p>Ein Escape-Room-Abenteuer des<br><span class="hl">Jugendrotkreuz</span></p><br>
-  <button class="btn btn-r" onclick="go('s-st1')">Einsteigen ▸</button>
+<div class="screen active vcenter" id="s-title">
+  <div class="sys-log" style="text-align:center;font-size:.6rem;opacity:.5;margin-bottom:16px">
+    [SYS] Leitstelle v4.7.2 | Status: <span class="log-r">KRITISCH</span></div>
+  <div class="cross-icon">✚</div>
+  <h1 class="glitch" data-text="CODE RED">CODE RED</h1>
+  <p style="color:var(--text-dim);font-size:1rem;margin-bottom:4px">Systemausfall in der Leitstelle</p>
+  <div class="deco-line"></div>
+  <p style="font-size:.8rem;color:var(--text-dim)">Ein Escape-Room-Abenteuer des Jugendrotkreuz</p><br>
+  <button class="btn btn-red" onclick="go('s-story1')">Mission starten ▸</button>
 </div>
 
 <!-- STORY 1 -->
-<div class="screen" id="s-st1">
-  <h3>⚠ Eingehende Meldung</h3>
-  <div class="pn">
-    <p style="color:var(--red-glow);font-family:var(--mono);font-size:.9rem;margin-bottom:12px">SYSTEM: KRITISCHER FEHLER ERKANNT</p>
-    <p>Ein unbekannter <span class="hl">Computervirus</span> hat das gesamte System der Rettungsleitstelle lahmgelegt. Keine Einsätze können mehr koordiniert werden!</p>
-    <p>Im Dorf wurde ein <span class="hl">Großbrand</span> gemeldet – doch ohne das Leitstellensystem können die Rettungskräfte nicht losgeschickt werden.</p>
-    <p>Es gibt nur eine Chance: Das analoge <span class="hl">Notfall-Protokoll</span> eines erfahrenen, alten Rettungssanitäters. Er hat seine Geheimnisse in Rätseln versteckt...</p>
+<div class="screen vcenter" id="s-story1">
+  <h3>⚠ Systemwarnung</h3>
+  <div class="sys-log">
+    <span class="log-r">[FEHLER]</span> Virus erkannt: "BLACKOUT-7"<br>
+    <span class="log-r">[FEHLER]</span> Einsatzleitsystem... OFFLINE<br>
+    <span class="log-r">[FEHLER]</span> Funkverbindung... UNTERBROCHEN<br>
+    <span class="log-r">[FEHLER]</span> GPS-Ortung... AUSGEFALLEN<br>
+    <span class="log-a">[WARN]</span> Notfall-Protokoll verfügbar<br>
+    <span class="log-g">[INFO]</span> Manueller Neustart möglich...</div>
+  <div class="panel panel-dark">
+    <p>Ein gefährlicher Computervirus namens <span class="hl">"BLACKOUT-7"</span> hat das komplette System der Rettungsleitstelle lahmgelegt. Kein Rettungswagen kann losgeschickt werden, kein Notruf kommt durch!</p>
+    <p>Gleichzeitig wurde am Ortsrand ein <span class="hl">Großbrand</span> gemeldet. Menschen sind in Gefahr – aber ohne das Leitstellensystem kann niemand helfen.</p>
   </div>
-  <button class="btn btn-r" onclick="go('s-st2')">Weiter ▸</button>
+  <button class="btn btn-red" onclick="go('s-story2')">Weiter ▸</button>
 </div>
 
 <!-- STORY 2 -->
-<div class="screen" id="s-st2">
-  <h3>🎯 Eure Mission</h3>
-  <div class="pn">
-    <p><strong>Ihr habt 60 Minuten</strong>, um das System neu zu starten!</p>
-    <p>Löst die Rätsel des alten Sanitäters – drinnen und draußen – und gebt die richtigen Codes ins Tablet ein.</p>
-    <p>Nur <span class="hl">Teamwork</span> bringt euch ans Ziel. Jeder wird gebraucht!</p>
+<div class="screen vcenter" id="s-story2">
+  <h3>🧓 Der alte Sanitäter</h3>
+  <div class="char-badge">
+    <div class="avatar">👴</div>
+    <div style="text-align:left">
+      <div style="font-weight:700;color:var(--text-bright)">Friedrich "Fritz" Bergmann</div>
+      <div style="font-size:.7rem;color:var(--text-dim)">Rettungssanitäter seit 1975 · 50 Jahre im Dienst</div>
+    </div>
   </div>
-  <button class="btn btn-r" onclick="go('s-rules')">Weiter ▸</button>
+  <div class="panel panel-dark">
+    <p>Es gibt eine letzte Hoffnung: <span class="hl-a">Fritz Bergmann</span>, der älteste Rettungssanitäter der Region, hat für genau so einen Fall vorgesorgt.</p>
+    <p>Er hat ein <span class="hl">analoges Notfall-Protokoll</span> hinterlassen – versteckt in Rätseln und Codes, verteilt im ganzen Gebäude und draußen im Gelände.</p>
+    <p style="font-style:italic;color:var(--text-bright)">"Wer meine Rätsel löst, kann das System neu starten. Aber nur ein echtes Team schafft es in der Zeit!"<br><span style="color:var(--text-dim);font-style:normal;font-size:.8rem">— Fritz Bergmann</span></p>
+  </div>
+  <button class="btn btn-red" onclick="go('s-story3')">Weiter ▸</button>
+</div>
+
+<!-- STORY 3 -->
+<div class="screen vcenter" id="s-story3">
+  <h3>🎯 Eure Mission</h3>
+  <h2>System-Neustart in 60 Minuten</h2>
+  <div class="deco-line"></div>
+  <p>Löst die <span class="hl">7 Sicherheitsmodule</span>, besteht die <span class="hl-a">Abschlussprüfung</span> und eliminiert den Virus – bevor die Zeit abläuft!</p>
+  <div class="panel" style="text-align:center;font-family:var(--mono);font-size:.78rem;color:var(--text-dim);line-height:2">
+    Module 1–3: <span class="hl">Drinnen</span><br>
+    Modul 4: <span class="hl-g">Draußen</span> (5 Stationen)<br>
+    Module 5–7: <span class="hl">Drinnen</span><br>
+    Finale: <span class="hl-a">Quiz + Minigame</span>
+  </div>
+  <button class="btn btn-red" onclick="go('s-rules')">Zu den Regeln ▸</button>
 </div>
 
 <!-- RULES -->
 <div class="screen" id="s-rules">
-  <h3>📋 Regeln</h3>
-  <div class="pn">
-    <ul>
-      <li>Das <strong>Tablet bleibt immer drinnen</strong> auf dem Tisch!</li>
-      <li>Für die Außen-Rätsel nehmt ihr <strong>Stift und Papier</strong> mit.</li>
-      <li>Zettel draußen <strong>hängen lassen</strong> – nicht mitnehmen!</li>
-      <li><strong>Teamwork</strong> ist Pflicht – besprecht euch, bevor ihr eine Lösung eingebt!</li>
-      <li>Ihr habt <strong>3 Versuche</strong> pro Rätsel. Danach gibt es einen Hinweis.</li>
-      <li>Der Timer läuft ab dem Start – <strong>60 Minuten</strong>!</li>
-    </ul>
-  </div><br>
-  <button class="btn btn-r btn-s" onclick="startGame()">🚨 MISSION STARTEN</button>
+  <h3>📋 Spielregeln</h3>
+  <h2>Bitte alles genau lesen!</h2>
+  <div class="panel" style="max-width:560px">
+    <h4>Allgemeine Regeln</h4>
+    <div class="rule-item"><span class="rule-num">1</span><span>Das <strong>Tablet bleibt IMMER auf dem Tisch</strong>. Es wird niemals mitgenommen!</span></div>
+    <div class="rule-item"><span class="rule-num">2</span><span><strong>Niemand verlässt den Raum</strong>, bis das Tablet euch dazu auffordert. Erst bei Modul 4 geht ihr raus.</span></div>
+    <div class="rule-item"><span class="rule-num">3</span><span>Ihr habt <strong>3 Versuche pro Rätsel</strong>. Nach 3 Fehlern bekommt ihr einen Hinweis.</span></div>
+    <div class="rule-item"><span class="rule-num">4</span><span>Der <strong>Timer startet sofort</strong> – ihr habt genau 60 Minuten!</span></div>
+    <div class="rule-item"><span class="rule-num">5</span><span>Gefundene Gegenstände <strong>wieder hinlegen</strong> – nicht behalten!</span></div>
+  </div>
+  <div class="panel" style="max-width:560px">
+    <h4>Teamwork-Regeln</h4>
+    <div class="rule-item"><span class="rule-num">6</span><span><strong>Besprecht jede Lösung im Team</strong>, bevor ihr sie eingebt. Jede Stimme zählt!</span></div>
+    <div class="rule-item"><span class="rule-num">7</span><span><strong>Aufgaben verteilen</strong>: Einer liest vor, einer schreibt, einer rechnet – alle helfen!</span></div>
+    <div class="rule-item"><span class="rule-num">8</span><span><strong>Fair Play</strong>: Nicht schummeln, kein Handy benutzen. Gemeinsam gewinnen oder verlieren!</span></div>
+  </div>
+  <div class="panel" style="max-width:560px">
+    <h4>Draußen-Regeln (Modul 4)</h4>
+    <div class="rule-item"><span class="rule-num">9</span><span><strong>Stift und Papier</strong> mitnehmen! Ihr müsst Zahlen notieren.</span></div>
+    <div class="rule-item"><span class="rule-num">10</span><span>Zettel draußen <strong>hängen lassen</strong>! Lesen, notieren, aber nicht mitnehmen.</span></div>
+    <div class="rule-item"><span class="rule-num">11</span><span><strong>Nicht rennen!</strong> Besonders nicht im Treppenhaus. Sicherheit geht vor!</span></div>
+    <div class="rule-item"><span class="rule-num">12</span><span>Jeder Zettel zeigt die <strong>nächste Station</strong>. Folgt der Reihenfolge!</span></div>
+    <div class="rule-item"><span class="rule-num">13</span><span>Nach Station 5 <strong>sofort zurück</strong> zum Tablet und Code eingeben!</span></div>
+  </div>
+  <br>
+  <button class="btn btn-red btn-big" onclick="startGame()">🚨 MISSION STARTEN</button>
 </div>
 
 <!-- LEVEL 1: CAESAR -->
-<div class="screen" id="s-l1"><div class="sc">
+<div class="screen" id="s-l1">
+  <div class="module-name">Modul 1 · Kommunikation</div>
   <h3>Level 1 – Verschlüsselte Nachricht</h3>
-  <h2>Cäsar-Chiffre</h2>
-  <p>Der alte Sanitäter hat eine verschlüsselte Nachricht hinterlassen. Benutzt die <span class="hl">Cäsar-Scheibe</span> (liegt auf dem Tisch)!</p>
-  <div class="ct">Verschlüsselt: QRWUXI</div>
-  <p style="font-size:.85rem">Verschiebung <strong>3</strong> – dreht jeden Buchstaben 3 Stellen zurück!</p>
-  <div class="ig"><input class="if" id="i-l1" maxlength="10" placeholder="LÖSUNG..." onkeydown="if(event.key==='Enter')chk('l1')"><button class="btn btn-g" onclick="chk('l1')">✓</button></div>
-  <div class="fb" id="f-l1"></div>
-</div></div>
+  <h2>Die Cäsar-Chiffre</h2>
+  <p>Fritz hat seine erste Nachricht mit einer <span class="hl">Cäsar-Verschlüsselung</span> gesichert. Benutzt die Cäsar-Scheibe auf dem Tisch!</p>
+  <div class="code-text" style="font-size:1.4rem;letter-spacing:.2em">Q R W U X I</div>
+  <p style="font-size:.82rem;color:var(--text-dim)">Verschiebung: <strong>3 Stellen zurück</strong> · Beispiel: D→A, E→B, F→C</p>
+  <div class="input-group">
+    <input class="input-field" id="inp-l1" maxlength="10" placeholder="LÖSUNG..." autocomplete="off" autocapitalize="characters" onkeydown="if(event.key==='Enter')chk('l1')">
+    <button class="btn btn-green" onclick="chk('l1')">✓</button>
+  </div>
+  <div class="feedback" id="fb-l1"></div>
+</div>
+
+<!-- TRANS 1 -->
+<div class="screen vcenter" id="s-t1">
+  <div class="sys-log" style="text-align:center">
+    <span class="log-g">[OK]</span> Kommunikationsmodul wiederhergestellt<br>
+    <span class="log-a">[SCAN]</span> Datenbank-Modul wird geladen...<br>
+    <span class="log-g">[INFO]</span> Fritz: "Gut gemacht! Weiter so!"</div>
+  <button class="btn btn-red" onclick="go('s-l2')" style="margin-top:16px">Weiter ▸</button>
+</div>
 
 <!-- LEVEL 2: CROSSWORD -->
-<div class="screen" id="s-l2"><div class="sc">
+<div class="screen" id="s-l2">
+  <div class="module-name">Modul 2 · Datenbank</div>
   <h3>Level 2 – Kreuzworträtsel</h3>
   <h2>Erste-Hilfe-Wissen</h2>
-  <p>Löst das <span class="hl">Kreuzworträtsel</span> auf dem Arbeitsblatt! Die rot markierten Buchstaben ergeben das Lösungswort.</p>
-  <div class="pn" style="font-size:.9rem"><ul>
-    <li>1. Kopfschutz beim Radfahren (4 Buchstaben)</li>
-    <li>2. Damit verbindet man eine Wunde (7 Buchstaben)</li>
-    <li>3. Den fühlt man am Handgelenk (4 Buchstaben)</li>
-    <li>4. Verbandmaterial in Dreiecksform (11 Buchstaben)</li>
+  <p>Löst das <span class="hl">Kreuzworträtsel</span> auf dem Arbeitsblatt! Die farbig markierten Buchstaben ergeben das Lösungswort.</p>
+  <div class="panel"><h4>Hinweise</h4><ul>
+    <li>Kopfschutz beim Radfahren (4 Buchstaben)</li>
+    <li>Damit verbindet man eine Wunde (7 Buchstaben)</li>
+    <li>Den fühlt man am Handgelenk (4 Buchstaben)</li>
+    <li>Verbandmaterial in Dreiecksform (11 Buchstaben)</li>
   </ul></div>
-  <div class="ig"><input class="if" id="i-l2" maxlength="10" placeholder="LÖSUNGSWORT..." onkeydown="if(event.key==='Enter')chk('l2')"><button class="btn btn-g" onclick="chk('l2')">✓</button></div>
-  <div class="fb" id="f-l2"></div>
-</div></div>
+  <div class="input-group">
+    <input class="input-field" id="inp-l2" maxlength="10" placeholder="LÖSUNGSWORT..." autocomplete="off" autocapitalize="characters" onkeydown="if(event.key==='Enter')chk('l2')">
+    <button class="btn btn-green" onclick="chk('l2')">✓</button>
+  </div>
+  <div class="feedback" id="fb-l2"></div>
+</div>
+
+<!-- TRANS 2 -->
+<div class="screen vcenter" id="s-t2">
+  <div class="sys-log" style="text-align:center">
+    <span class="log-g">[OK]</span> Datenbank-Modul wiederhergestellt<br>
+    <span class="log-a">[SCAN]</span> Inventarsystem wird geprüft...<br>
+    <span class="log-g">[INFO]</span> Fritz: "Ihr wisst Bescheid – echte Profis!"</div>
+  <button class="btn btn-red" onclick="go('s-l3')" style="margin-top:16px">Weiter ▸</button>
+</div>
 
 <!-- LEVEL 3: ITEMS -->
-<div class="screen" id="s-l3"><div class="sc">
-  <h3>Level 3 – Inventur im Rettungswagen</h3>
+<div class="screen" id="s-l3">
+  <div class="module-name">Modul 3 · Inventar</div>
+  <h3>Level 3 – Inventur</h3>
   <h2>Gegenstände zählen</h2>
-  <p>Im Raum sind <span class="hl">versteckte Gegenstände</span>. Findet und zählt sie!</p>
-  <div class="pn" style="font-size:.95rem"><ul>
-    <li><strong>1. Ziffer:</strong> Anzahl der LEGOSTEINE</li>
-    <li><strong>2. Ziffer:</strong> Anzahl der STIFTE</li>
-    <li><strong>3. Ziffer:</strong> Anzahl der KLEBEZETTEL</li>
-  </ul></div>
-  <p style="font-size:.85rem">Schaut überall – unter Stühlen, hinter Büchern, in Ecken!</p>
-  <div class="ig"><input class="if" id="i-l3" maxlength="3" placeholder="_ _ _" inputmode="numeric" onkeydown="if(event.key==='Enter')chk('l3')"><button class="btn btn-g" onclick="chk('l3')">✓</button></div>
-  <div class="fb" id="f-l3"></div>
-</div></div>
+  <p>Fritz hat <span class="hl">Gegenstände im Raum versteckt</span>. Findet sie – die Anzahl ergibt euren 3-stelligen Code!</p>
+  <div class="panel"><h4>Zu finden</h4><ul>
+    <li><strong>1. Ziffer:</strong> Anzahl <span class="hl">LEGOSTEINE</span></li>
+    <li><strong>2. Ziffer:</strong> Anzahl <span class="hl">STIFTE</span></li>
+    <li><strong>3. Ziffer:</strong> Anzahl <span class="hl">KLEBEZETTEL</span></li>
+  </ul>
+  <p style="font-size:.78rem;color:var(--text-dim);margin:8px 0 0">Überall schauen: Stühle, Regale, Fensterbank, Schubladen, Ecken!</p></div>
+  <div class="input-group">
+    <input class="input-field" id="inp-l3" maxlength="3" placeholder="_ _ _" inputmode="numeric" onkeydown="if(event.key==='Enter')chk('l3')">
+    <button class="btn btn-green" onclick="chk('l3')">✓</button>
+  </div>
+  <div class="feedback" id="fb-l3"></div>
+</div>
 
 <!-- OUTDOOR INTRO -->
-<div class="screen" id="s-out-i">
-  <h3>🌍 Außenmission freigeschaltet!</h3>
-  <h2>Ab nach draußen!</h2>
-  <div class="pn">
-    <p style="color:var(--green);font-family:var(--mono);font-size:.9rem;margin-bottom:12px">SYSTEM: OUTDOOR-MODUL AKTIVIERT</p>
-    <ul>
-      <li>Nehmt <strong>Stift und Papier</strong> mit!</li>
-      <li>Es gibt <strong>5 Stationen</strong> draußen</li>
-      <li>Jeder Zettel verrät euch die <strong>nächste Station</strong></li>
-      <li>Notiert euch alle <strong>Zahlen</strong> – ihr braucht sie am Ende!</li>
-      <li>Zettel <strong>hängen lassen</strong>!</li>
-      <li><strong>Erste Station: TREPPENHAUS</strong><br>(oberer Stock, hinten an der Tür)</li>
-    </ul>
-  </div><br>
-  <button class="btn btn-r" onclick="go('s-out-r')">Verstanden – Los! ▸</button>
+<div class="screen vcenter" id="s-out-intro">
+  <div class="sys-log" style="text-align:center">
+    <span class="log-g">[OK]</span> Inventar-Modul wiederhergestellt<br>
+    <span class="log-r">[WICHTIG]</span> Außenmission erforderlich!</div>
+  <h2 style="color:var(--green);margin-top:12px">🌍 Außenmission freigeschaltet!</h2>
+  <div class="panel"><h4>Auftrag</h4><ul>
+    <li><strong>Stift und Papier</strong> mitnehmen!</li>
+    <li><strong>5 Stationen</strong> draußen abarbeiten</li>
+    <li>Jeder Zettel verrät die <strong>nächste Station</strong></li>
+    <li><strong>Alle Zahlen notieren</strong> – für die Endberechnung!</li>
+    <li>Zettel <strong>hängen lassen</strong>!</li>
+    <li><strong>Nicht rennen</strong> – Sicherheit geht vor!</li>
+  </ul></div>
+  <div class="panel panel-dark" style="text-align:center">
+    <p style="color:var(--amber);font-weight:700;font-size:1rem;margin:0">📍 Erste Station:</p>
+    <p style="color:var(--text-bright);font-size:1.1rem;font-weight:700;margin:4px 0 0">TREPPENHAUS<br>
+    <span style="font-size:.82rem;font-weight:400;color:var(--text-dim)">Oberer Stock, hinten an der Tür</span></p>
+  </div>
+  <button class="btn btn-red" onclick="go('s-out-return')" style="margin-top:8px">Ab nach draußen! ▸</button>
 </div>
 
 <!-- OUTDOOR RETURN -->
-<div class="screen" id="s-out-r"><div class="sc">
+<div class="screen" id="s-out-return">
+  <div class="module-name">Modul 4 · Navigation</div>
   <h3>🔑 Außenmission – Code eingeben</h3>
   <h2>Zurück von draußen?</h2>
   <p>Gebt das Ergebnis eurer Berechnung von <span class="hl">Station 5</span> ein!</p>
-  <div class="ig"><input class="if" id="i-out" maxlength="5" placeholder="CODE..." inputmode="numeric" onkeydown="if(event.key==='Enter')chk('out')"><button class="btn btn-g" onclick="chk('out')">✓</button></div>
-  <div class="fb" id="f-out"></div>
-</div></div>
-
-<!-- LEVEL 5: NUMBER CODE -->
-<div class="screen" id="s-l5"><div class="sc">
-  <h3>Level 5 – Funkspruch entschlüsseln</h3>
-  <h2>Zahlencode</h2>
-  <p>Jeder Buchstabe hat eine Zahl: <span class="hl">A=1, B=2, C=3 ... Z=26</span></p>
-  <div class="ct">2 – 18 – 1 – 14 – 4</div>
-  <p style="font-size:.85rem">Benutzt das Entschlüsselungsblatt oder zählt im Alphabet!</p>
-  <div class="ig"><input class="if" id="i-l5" maxlength="10" placeholder="WORT..." onkeydown="if(event.key==='Enter')chk('l5')"><button class="btn btn-g" onclick="chk('l5')">✓</button></div>
-  <div class="fb" id="f-l5"></div>
-</div></div>
-
-<!-- LEVEL 7: MORSE -->
-<div class="screen" id="s-l7"><div class="sc">
-  <h3>Level 7 – Morsezeichen</h3>
-  <h2>Notsignal entschlüsseln</h2>
-  <p>Der alte Sanitäter hat eine letzte Nachricht per <span class="hl">Morsecode</span> hinterlassen!</p>
-  <div class="ct" style="font-size:1.5rem;letter-spacing:.3em">..−. / ..− / −. / −.−</div>
-  <p style="font-size:.85rem">Punkt = kurz &nbsp; Strich = lang &nbsp; / = nächster Buchstabe</p>
-  <div class="mt">
-    <div class="mc"><span class="ml">A</span><br><span class="mcd">.-</span></div>
-    <div class="mc"><span class="ml">B</span><br><span class="mcd">-...</span></div>
-    <div class="mc"><span class="ml">C</span><br><span class="mcd">-.-.</span></div>
-    <div class="mc"><span class="ml">D</span><br><span class="mcd">-..</span></div>
-    <div class="mc"><span class="ml">E</span><br><span class="mcd">.</span></div>
-    <div class="mc"><span class="ml">F</span><br><span class="mcd">..-.</span></div>
-    <div class="mc"><span class="ml">G</span><br><span class="mcd">--.</span></div>
-    <div class="mc"><span class="ml">H</span><br><span class="mcd">....</span></div>
-    <div class="mc"><span class="ml">I</span><br><span class="mcd">..</span></div>
-    <div class="mc"><span class="ml">J</span><br><span class="mcd">.---</span></div>
-    <div class="mc"><span class="ml">K</span><br><span class="mcd">-.-</span></div>
-    <div class="mc"><span class="ml">L</span><br><span class="mcd">.-..</span></div>
-    <div class="mc"><span class="ml">M</span><br><span class="mcd">--</span></div>
-    <div class="mc"><span class="ml">N</span><br><span class="mcd">-.</span></div>
-    <div class="mc"><span class="ml">O</span><br><span class="mcd">---</span></div>
-    <div class="mc"><span class="ml">P</span><br><span class="mcd">.--.</span></div>
-    <div class="mc"><span class="ml">Q</span><br><span class="mcd">--.-</span></div>
-    <div class="mc"><span class="ml">R</span><br><span class="mcd">.-.</span></div>
-    <div class="mc"><span class="ml">S</span><br><span class="mcd">...</span></div>
-    <div class="mc"><span class="ml">T</span><br><span class="mcd">-</span></div>
-    <div class="mc"><span class="ml">U</span><br><span class="mcd">..-</span></div>
-    <div class="mc"><span class="ml">V</span><br><span class="mcd">...-</span></div>
-    <div class="mc"><span class="ml">W</span><br><span class="mcd">.--</span></div>
-    <div class="mc"><span class="ml">X</span><br><span class="mcd">-..-</span></div>
-    <div class="mc"><span class="ml">Y</span><br><span class="mcd">-.--</span></div>
-    <div class="mc"><span class="ml">Z</span><br><span class="mcd">--..</span></div>
+  <div class="panel" style="font-size:.85rem;text-align:center;font-family:var(--mono)">(St.1 + St.4) × St.2 − St.3 = ?</div>
+  <div class="input-group">
+    <input class="input-field" id="inp-out" maxlength="5" placeholder="CODE..." inputmode="numeric" onkeydown="if(event.key==='Enter')chk('out')">
+    <button class="btn btn-green" onclick="chk('out')">✓</button>
   </div>
-  <div class="ig"><input class="if" id="i-l7" maxlength="10" placeholder="WORT..." onkeydown="if(event.key==='Enter')chk('l7')"><button class="btn btn-g" onclick="chk('l7')">✓</button></div>
-  <div class="fb" id="f-l7"></div>
-</div></div>
+  <div class="feedback" id="fb-out"></div>
+</div>
+
+<!-- TRANS 4 -->
+<div class="screen vcenter" id="s-t4">
+  <div class="sys-log" style="text-align:center">
+    <span class="log-g">[OK]</span> Navigationsmodul wiederhergestellt<br>
+    <span class="log-a">[SCAN]</span> Verschlüsselungsmodul wird geladen...</div>
+  <button class="btn btn-red" onclick="go('s-l5')" style="margin-top:16px">Weiter ▸</button>
+</div>
+
+<!-- LEVEL 5: FUNKSPRUCH -->
+<div class="screen" id="s-l5">
+  <div class="module-name">Modul 5 · Verschlüsselung</div>
+  <h3>Level 5 – Funkspruch</h3>
+  <h2>Zahlen-Buchstaben-Code</h2>
+  <p>Letzter Funkspruch von Fritz! <span class="hl">A=1, B=2, C=3 ... Z=26</span></p>
+  <div class="code-text" style="font-size:1.5rem">2 – 18 – 1 – 14 – 4</div>
+  <p style="font-size:.82rem;color:var(--text-dim)">Benutzt das Entschlüsselungsblatt oder zählt im Alphabet!</p>
+  <div class="input-group">
+    <input class="input-field" id="inp-l5" maxlength="10" placeholder="WORT..." autocomplete="off" autocapitalize="characters" onkeydown="if(event.key==='Enter')chk('l5')">
+    <button class="btn btn-green" onclick="chk('l5')">✓</button>
+  </div>
+  <div class="feedback" id="fb-l5"></div>
+</div>
+
+<!-- TRANS 5 -->
+<div class="screen vcenter" id="s-t5">
+  <div class="sys-log" style="text-align:center">
+    <span class="log-g">[OK]</span> Verschlüsselungsmodul online<br>
+    <span class="log-a">[SCAN]</span> Protokoll-Modul benötigt Verifizierung...</div>
+  <button class="btn btn-red" onclick="go('s-l7')" style="margin-top:16px">Weiter ▸</button>
+</div>
+
+<!-- LEVEL 7: RETTUNGSKETTE -->
+<div class="screen" id="s-l7">
+  <div class="module-name">Modul 6 · Protokoll</div>
+  <h3>Level 6 – Die Rettungskette</h3>
+  <h2>Richtige Reihenfolge finden!</h2>
+  <p>Auf eurem <span class="hl">Arbeitsblatt</span> sind 6 Schritte durcheinander. Bringt sie in die richtige Reihenfolge – die Buchstaben ergeben das Lösungswort!</p>
+  <div class="panel"><h4>Schritte (durcheinander!)</h4><ul>
+    <li><strong>T</strong> – Telefon: Notruf 112 absetzen</li>
+    <li><strong>R</strong> – Rettungsdienst einweisen und übergeben</li>
+    <li><strong>E</strong> – Erste Hilfe leisten</li>
+    <li><strong>R</strong> – Ruhe bewahren, Unfallstelle absichern</li>
+    <li><strong>E</strong> – Erkennen: Was ist passiert?</li>
+    <li><strong>T</strong> – Trost spenden, Verletzte betreuen</li>
+  </ul></div>
+  <p style="font-size:.82rem;color:var(--text-dim)">Was macht man zuerst? Was als Letztes?</p>
+  <div class="input-group">
+    <input class="input-field" id="inp-l7" maxlength="10" placeholder="LÖSUNGSWORT..." autocomplete="off" autocapitalize="characters" onkeydown="if(event.key==='Enter')chk('l7')">
+    <button class="btn btn-green" onclick="chk('l7')">✓</button>
+  </div>
+  <div class="feedback" id="fb-l7"></div>
+</div>
+
+<!-- TRANS 7 -->
+<div class="screen vcenter" id="s-t7">
+  <div class="sys-log" style="text-align:center">
+    <span class="log-g">[OK]</span> Alle 6 Module wiederhergestellt!<br>
+    <span class="log-a">[SYSTEM]</span> Identitätsprüfung erforderlich...</div>
+  <h2 style="color:var(--amber);margin-top:12px">Abschlussprüfung</h2>
+  <p>15 Fragen zu DRK, Erster Hilfe und Allgemeinwissen.<br>Mindestens <span class="hl">8 richtige Antworten</span> nötig!</p>
+  <button class="btn btn-red" onclick="go('s-quiz')" style="margin-top:12px">Quiz starten ▸</button>
+</div>
 
 <!-- QUIZ -->
-<div class="screen" id="s-quiz"><div class="sc">
-  <h3>Level 8 – Abschlussprüfung</h3>
-  <div class="qc" id="qc">Frage 1 / 15</div>
-  <div class="qs" id="qsc">Richtig: 0 / 0</div>
-  <div id="qbox"></div>
-  <div style="margin-top:12px">
-    <button class="btn btn-r" id="qnb" style="display:none" onclick="nxtQ()">Nächste Frage ▸</button>
-    <button class="btn btn-g" id="qfb" style="display:none" onclick="finQ()">Auswertung ▸</button>
+<div class="screen" id="s-quiz">
+  <div class="quiz-wrap">
+    <div class="qbar"><span id="qc">1/15</span><span>Richtig: <span class="gc" id="qok">0</span>/15</span></div>
+    <div class="qprog"><div class="qprog-fill" id="qpf"></div></div>
+    <div id="qbox"></div>
+    <div style="margin-top:10px;text-align:center">
+      <button class="btn btn-red" id="qnxt" style="display:none" onclick="nextQ()">Nächste Frage ▸</button>
+      <button class="btn btn-green" id="qfin" style="display:none" onclick="finishQuiz()">Auswertung ▸</button>
+    </div>
   </div>
-</div></div>
+</div>
 
 <!-- QUIZ RESULT -->
-<div class="screen" id="s-qr"><div id="qrc"></div></div>
+<div class="screen vcenter" id="s-qr"><div id="qres"></div></div>
 
 <!-- MINIGAME -->
-<div class="screen" id="s-mg"><div class="sc">
-  <h3>Finales Level – Viren-Scanner</h3>
-  <h2>System neustarten!</h2>
-  <p>Tippt auf die <span class="hl">Viren</span> (☠)! Fangt <strong>10 Viren</strong> in 30 Sekunden!</p>
-  <div class="mgs"><span>☠ <strong id="mgc">0</strong>/10</span><span>⏱ <strong id="mgt">30</strong>s</span></div>
-  <div class="mga" id="mga"></div><br>
-  <button class="btn btn-r" id="mgb" onclick="mgStart()">🎮 Minigame starten!</button>
-</div></div>
+<div class="screen" id="s-mg">
+  <div class="module-name">Finales Modul · Viruselimination</div>
+  <h3>Defi-Simulator</h3>
+  <h2>Eliminiert den Virus!</h2>
+  <p>Tippt auf die <span class="hl">Viren ☠</span> bevor sie verschwinden! Fangt <strong>10 Viren</strong> in 30 Sekunden!</p>
+  <div class="mg-stats"><span>☠ <strong id="mgc">0</strong>/10</span><span>⏱ <strong id="mgt">30</strong>s</span></div>
+  <div class="mg-area" id="mga"></div>
+  <button class="btn btn-red" id="mgb" onclick="startMG()" style="margin-top:8px">🎮 Starten!</button>
+</div>
 
 <!-- WIN -->
-<div class="screen" id="s-win">
-  <div class="ei">🏆</div>
-  <h1 style="color:var(--green)">SYSTEM WIEDERHERGESTELLT!</h1>
-  <div class="dl" style="background:var(--green)"></div>
-  <h2 style="color:var(--text-dim);font-weight:400">Mission erfolgreich!</h2>
-  <p>Ihr habt das Leitstellensystem rechtzeitig neu gestartet. Der Großbrand wird gelöscht – dank EUCH!</p>
-  <p id="wt" style="font-family:var(--mono);color:var(--green);font-size:1.2rem"></p>
-  <p style="color:var(--text-dim);font-size:.9rem;margin-top:24px">Ihr seid echte Rettungsprofis! 🚑 ✚</p><br>
-  <button class="btn btn-o" onclick="location.reload()">🔄 Nochmal spielen</button>
+<div class="screen vcenter" id="s-win">
+  <div style="font-size:3.5rem;margin-bottom:12px">🏆</div>
+  <h1 style="color:var(--green)">SYSTEM ONLINE!</h1>
+  <div class="deco-line" style="background:var(--green)"></div>
+  <div class="sys-log" style="text-align:center">
+    <span class="log-g">[OK]</span> Virus "BLACKOUT-7" eliminiert<br>
+    <span class="log-g">[OK]</span> Alle Module online<br>
+    <span class="log-g">[OK]</span> Rettungskräfte zum Brand entsandt!</div>
+  <p style="color:var(--text-bright);font-weight:600">Mission erfolgreich – dank EUCH!</p>
+  <p id="wt" style="font-family:var(--mono);color:var(--green);font-size:1.1rem"></p>
+  <div class="char-badge" style="margin-top:12px">
+    <div class="avatar">👴</div>
+    <div style="text-align:left;font-size:.85rem"><em>"Ich wusste es. Echte Retter!"</em><br><span style="font-size:.7rem;color:var(--text-dim)">— Fritz Bergmann</span></div>
+  </div><br>
+  <button class="btn btn-outline" onclick="location.reload()">🔄 Nochmal spielen</button>
 </div>
 
 <!-- LOSE -->
-<div class="screen" id="s-lose">
-  <div class="ei">💀</div>
+<div class="screen vcenter" id="s-lose">
+  <div style="font-size:3.5rem;margin-bottom:12px">💀</div>
   <h1 style="color:var(--red-glow)">SYSTEMABSTURZ</h1>
-  <h2 style="color:var(--text-dim);font-weight:400">Die Zeit ist abgelaufen...</h2>
-  <div class="dl"></div>
-  <p>Das System konnte nicht rechtzeitig wiederhergestellt werden. Beim nächsten Mal schafft ihr es!</p><br>
-  <button class="btn btn-r" onclick="location.reload()">🔄 Nochmal versuchen</button>
+  <div class="deco-line"></div>
+  <div class="sys-log" style="text-align:center">
+    <span class="log-r">[KRITISCH]</span> Zeitlimit überschritten<br>
+    <span class="log-a">[INFO]</span> Neustart wird vorbereitet...</div>
+  <p>Die Zeit ist abgelaufen – aber beim nächsten Mal schafft ihr es!</p>
+  <div class="char-badge"><div class="avatar">👴</div>
+    <div style="text-align:left;font-size:.85rem"><em>"Nicht aufgeben! Echte Retter stehen wieder auf."</em><br><span style="font-size:.7rem;color:var(--text-dim)">— Fritz Bergmann</span></div>
+  </div><br>
+  <button class="btn btn-red" onclick="location.reload()">🔄 Nochmal</button>
 </div>
 
 <script>
-const S={tr:false,tl:3600,ti:null,att:{l1:0,l2:0,l3:0,out:0,l5:0,l7:0},mx:3,pr:0,tot:9,
-  qi:0,qc:0,qa:0,mi:null,mt:null,mc:0,mtl:30,ma:false};
+const S={running:false,timeLeft:3600,interval:null,att:{l1:0,l2:0,l3:0,out:0,l5:0,l7:0},maxA:3,progress:0,total:8,qi:0,qC:0,qA:0,mgI:null,mgT:null,mgCt:0,mgTm:30,mgOn:false};
+const ANS={l1:'NOTRUF',l2:'HELD',l3:'324',out:'107',l5:'BRAND',l7:'RETTER'};
+const HINTS={l1:'Q→N, R→O, W→T, U→R, X→U, I→F',l2:'HELM(H) · VERBAND(E) · PULS(L) · DREIECKTUCH(D)',l3:'Gründlicher suchen! Unter Stühlen, hinter Büchern...',out:'(13+5) × 8 − 37 = ?',l5:'B=2, R=18, A=1, N=14, D=4',l7:'Ruhe → Erkennen → Telefon → Trost → Erste Hilfe → Rettungsdienst'};
+const NXT={l1:'s-t1',l2:'s-t2',l3:'s-out-intro',out:'s-t4',l5:'s-t5',l7:'s-t7'};
+const LV={l1:1,l2:2,l3:3,out:4,l5:5,l7:6};
+const LN={1:'Modul 1·Kommunikation',2:'Modul 2·Datenbank',3:'Modul 3·Inventar',4:'Modul 4·Navigation',5:'Modul 5·Verschlüsselung',6:'Modul 6·Protokoll',7:'Quiz·Prüfung',8:'Finale·Virus'};
 
-const LV={
-  l1:{a:'NOTRUF',nx:'s-l2',p:2,h:'Q→N, R→O, W→T, U→R, X→U, I→F = NOTRUF'},
-  l2:{a:'HELD',nx:'s-l3',p:3,h:'HELM(H) VERBAND(E) PULS(L) DREIECKTUCH(D) = HELD'},
-  l3:{a:'324',nx:'s-out-i',p:4,h:'3 Lego + 2 Stifte + 4 Klebezettel = 324'},
-  out:{a:'138',nx:'s-l5',p:5,h:'(13+6) × 8 − 14 = 138'},
-  l5:{a:'BRAND',nx:'s-l7',p:6,h:'B=2 R=18 A=1 N=14 D=4 = BRAND'},
-  l7:{a:'FUNK',nx:'s-quiz',p:7,h:'..-. = F, ..- = U, -. = N, -.- = K = FUNK'},
-};
+function go(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');document.getElementById(id).scrollTop=0;if(id==='s-quiz')initQ()}
+function setP(n){S.progress=n;document.getElementById('progress-bar').style.width=(n/S.total*100)+'%';document.getElementById('level-ind').textContent=LN[n]||''}
+function startGame(){S.running=true;document.getElementById('timer-bar').classList.add('visible');document.getElementById('progress-wrap').classList.add('visible');S.interval=setInterval(tick,1000);setP(1);go('s-l1')}
+function tick(){if(!S.running)return;S.timeLeft--;if(S.timeLeft<=0){S.running=false;clearInterval(S.interval);go('s-lose');return}const m=Math.floor(S.timeLeft/60),s=S.timeLeft%60;document.getElementById('timer-display').textContent=String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');const b=document.getElementById('timer-bar');b.classList.remove('warning','critical');if(S.timeLeft<=300)b.classList.add('critical');else if(S.timeLeft<=600)b.classList.add('warning')}
+function elapsed(){const e=3600-S.timeLeft;return Math.floor(e/60)+' Min. '+(e%60)+' Sek.'}
+function chk(id){const inp=document.getElementById('inp-'+id),val=inp.value.trim().toUpperCase();if(!val)return;if(val===ANS[id]){inp.classList.add('correct');fb(id,'✓ Modul freigeschaltet!',0);setP(LV[id]+1);setTimeout(()=>go(NXT[id]),1000)}else{S.att[id]++;inp.classList.add('wrong');setTimeout(()=>inp.classList.remove('wrong'),500);if(S.att[id]>=S.maxA)fb(id,'✗ Hinweis: '+HINTS[id],1);else{const l=S.maxA-S.att[id];fb(id,'✗ Falsch! Noch '+l+' Versuch'+(l>1?'e':''),1)}inp.value='';inp.focus()}}
+function fb(id,msg,err){const e=document.getElementById('fb-'+id);e.textContent=msg;e.className='feedback '+(err?'error':'success')}
 
-function go(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document
+const QS=[
+{q:"Wie lautet die europaweite Notrufnummer?",o:["110","112","118","911"],c:1},
+{q:"Wofür steht DRK?",o:["Deutsche Rettungskolonne","Deutsches Rotes Kreuz","Dienst Rotes Kreuz","Deutsche Rettungskräfte"],c:1},
+{q:"Was tust du ZUERST an einer Unfallstelle?",o:["Fotos machen","Verletzte behandeln","Unfallstelle absichern","Krankenwagen rufen"],c:2},
+{q:"Wie viele Knochen hat ein Erwachsener?",o:["106","156","206","306"],c:2},
+{q:"Wer gründete das Rote Kreuz?",o:["Albert Schweitzer","Henry Dunant","Florence Nightingale","Robert Koch"],c:1},
+{q:"Welche Lagerung bei Bewusstlosen mit Atmung?",o:["Schocklage","Stabile Seitenlage","Flachlagerung","Oberkörperhochlagerung"],c:1},
+{q:"Was gehört NICHT in einen Verbandkasten?",o:["Schere","Dreiecktuch","Schmerztabletten","Pflaster"],c:2},
+{q:"Wie heißt Wiederbelebung als Fachbegriff?",o:["Defibrillation","Reanimation","Infusion","Intubation"],c:1},
+{q:"Was prüfst du bei Bewusstlosen als Erstes?",o:["Blutdruck","Temperatur","Atmung","Pupillen"],c:2},
+{q:"Welches Symbol hat das DRK?",o:["Rotes Kreuz auf weißem Grund","Weißes Kreuz auf rotem Grund","Rotes Herz","Rotes Dreieck"],c:0},
+{q:"Welches Gas brauchen wir zum Atmen?",o:["Stickstoff","Helium","Sauerstoff","Kohlendioxid"],c:2},
+{q:"Wie viele Bundesländer hat Deutschland?",o:["12","14","16","18"],c:2},
+{q:"Welches Organ pumpt Blut durch den Körper?",o:["Lunge","Leber","Gehirn","Herz"],c:3},
+{q:"Was bedeutet RTW?",o:["Rettungstransportwagen","Roter Transport Wagen","Rettungstechnik Werkstatt","Reserve Transport Wache"],c:0},
+{q:"Telefonnummer der Polizei in Deutschland?",o:["112","110","108","122"],c:1}
+];
+const QMIN=8;
+function initQ(){S.qi=0;S.qC=0;S.qA=0;showQ()}
+function showQ(){const q=QS[S.qi];document.getElementById('qc').textContent=(S.qi+1)+'/'+QS.length;document.getElementById('qok').textContent=S.qC;document.getElementById('qpf').style.width=(S.qi/QS.length*100)+'%';document.getElementById('qnxt').style.display='none';document.getElementById('qfin').style.display='none';let h='<div class="quiz-q"><span class="quiz-num">#'+(S.qi+1)+'</span> '+q.q+'</div><div class="quiz-options">';q.o.forEach((o,i)=>{h+='<button class="quiz-opt" onclick="pickQ(this,'+i+','+q.c+')">'+o+'</button>'});h+='</div>';document.getElementById('qbox').innerHTML=h}
+function pickQ(b,i,c){document.querySelectorAll('.quiz-opt').forEach(o=>{o.disabled=true;o.style.pointerEvents='none'});if(i===c){b.classList.add('ok');S.qC++}else{b.classList.add('nok');document.querySelectorAll('.quiz-opt')[c].classList.add('ok')}S.qA++;document.getElementById('qok').textContent=S.qC;document.getElementById(S.qi<QS.length-1?'qnxt':'qfin').style.display='inline-flex'}
+function nextQ(){S.qi++;showQ()}
+function finishQuiz(){document.getElementById('qpf').style.width='100%';const ok=S.qC>=QMIN;document.getElementById('qres').innerHTML=ok?'<div style="font-size:3.5rem">✅</div><h2 style="color:var(--green)">Prüfung bestanden!</h2><p style="font-family:var(--mono);color:var(--green);font-size:1.1rem">'+S.qC+'/'+QS.length+' richtig</p><p>Nur noch der letzte Schritt!</p><button class="btn btn-green" onclick="setP(8);go(\'s-mg\')" style="margin-top:16px">Zum Finale! ▸</button>':'<div style="font-size:3.5rem">❌</div><h2 style="color:var(--red)">Nicht bestanden</h2><p style="font-family:var(--mono);color:var(--red);font-size:1.1rem">'+S.qC+'/'+QS.length+' ('+QMIN+' nötig)</p><p>Besprecht euch und versucht es nochmal!</p><button class="btn btn-red" onclick="go(\'s-quiz\')" style="margin-top:16px">Wiederholen ▸</button>';go('s-qr')}
+
+function startMG(){S.mgCt=0;S.mgTm=30;S.mgOn=true;document.getElementById('mgc').textContent='0';document.getElementById('mgt').textContent='30';document.getElementById('mgb').style.display='none';document.getElementById('mga').innerHTML='';S.mgI=setInterval(()=>{S.mgTm--;document.getElementById('mgt').textContent=S.mgTm;if(S.mgTm<=0)endMG(0)},1000);spawnV()}
+function spawnV(){if(!S.mgOn)return;const a=document.getElementById('mga'),r=a.getBoundingClientRect(),v=document.createElement('div');v.className='virus';v.textContent='☠';v.style.left=Math.random()*(r.width-60)+'px';v.style.top=Math.random()*(r.height-60)+'px';v.onclick=function(){if(!S.mgOn)return;this.classList.add('caught');this.textContent='✓';S.mgCt++;document.getElementById('mgc').textContent=S.mgCt;setTimeout(()=>this.remove(),250);if(S.mgCt>=10)endMG(1)};a.appendChild(v);setTimeout(()=>{if(v.parentNode&&!v.classList.contains('caught'))v.remove()},2200);if(S.mgOn)S.mgT=setTimeout(spawnV,700+Math.random()*1000)}
+function endMG(w){S.mgOn=false;clearInterval(S.mgI);clearTimeout(S.mgT);document.getElementById('mga').innerHTML='';if(w){S.running=false;clearInterval(S.interval);document.getElementById('wt').textContent='Geschafft in '+elapsed()+'!';for(let i=0;i<20;i++){const c=document.createElement('div');c.className='confetti';c.textContent=['🎉','✚','❤️','⭐','🏆','🚑'][Math.floor(Math.random()*6)];c.style.left=Math.random()*100+'vw';c.style.animationDuration=(2+Math.random()*3)+'s';c.style.animationDelay=Math.random()*2+'s';document.body.appendChild(c);setTimeout(()=>c.remove(),6000)}setTimeout(()=>go('s-win'),600)}else{const b=document.getElementById('mgb');b.style.display='inline-flex';b.textContent='🔄 Nochmal!'}}
+</script>
+</body>
+</html>
